@@ -1,5 +1,7 @@
 import { SeekBuffer } from './seekbuffer';
 
+class DivideByZeroError extends Error {}
+
 export class UInt128 {
   static MAX_VALUE = new UInt128((1n << 128n) - 1n);
 
@@ -40,7 +42,7 @@ export class UInt128 {
     return buffer.subarray(bufindex);
   }
 
-  private constructor(private value: bigint) {
+  private constructor(private readonly value: bigint) {
     if (BigInt.asUintN(128, value) !== value) {
       throw new Error('value is not within range for UInt128');
     }
@@ -61,6 +63,9 @@ export class UInt128 {
   }
 
   divide(other: UInt128): UInt128 {
+    if (other.value === 0n) {
+      throw new DivideByZeroError();
+    }
     return UInt128.of(this.value / other.value);
   }
 
