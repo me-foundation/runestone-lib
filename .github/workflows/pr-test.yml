@@ -6,7 +6,7 @@ name: PR - npm test
 on:
   # Triggers the workflow on pull request events but only for the "main" branch
   pull_request:
-    branches: [ "main" ]
+    branches: ['main']
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -21,4 +21,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 16
+      - run: npm install
       - run: npm test
