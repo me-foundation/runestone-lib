@@ -2,6 +2,43 @@ import _ from 'lodash';
 import { SeekBuffer } from '../src/seekbuffer';
 import { u128 } from '../src/u128';
 
+describe('u128 functions', () => {
+  test('u128 always casts value correctly', () => {
+    expect(u128(0)).toBe(0n);
+    expect(u128(1)).toBe(1n);
+    expect(u128(2n ** 128n - 1n)).toBe(
+      340282366920938463463374607431768211455n
+    );
+    expect(u128(2n ** 128n)).toBe(0n);
+    expect(u128(-1)).toBe(340282366920938463463374607431768211455n);
+    expect(() => u128(1.2)).toThrow();
+  });
+
+  test('u128 checked operations errors on overflow', () => {
+    expect(u128.checkedAdd(u128(45n), u128(25n))).toBe(70n);
+    expect(u128.checkedMultiply(u128(45n), u128(25n))).toBe(1125n);
+
+    expect(() => u128.checkedAdd(u128(2n ** 127n), u128(2n ** 127n))).toThrow();
+    expect(() =>
+      u128.checkedMultiply(u128(2n ** 127n), u128(2n ** 127n))
+    ).toThrow();
+  });
+
+  test('u128 saturating operations work as expected', () => {
+    expect(u128.saturatingAdd(u128(45n), u128(25n))).toBe(70n);
+    expect(u128.saturatingMultiply(u128(45n), u128(25n))).toBe(1125n);
+    expect(u128.saturatingSub(u128(45n), u128(25n))).toBe(20n);
+
+    expect(u128.saturatingAdd(u128(2n ** 127n), u128(2n ** 127n))).toBe(
+      u128.MAX
+    );
+    expect(u128.saturatingMultiply(u128(2n ** 127n), u128(2n ** 127n))).toBe(
+      u128.MAX
+    );
+    expect(u128.saturatingSub(u128(2n), u128(2n ** 127n))).toBe(0n);
+  });
+});
+
 describe('u128 varint encoding', () => {
   test('encode/decode varints roundtrips correctly', () => {
     const n = u128.MAX;

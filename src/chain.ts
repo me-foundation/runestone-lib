@@ -9,16 +9,16 @@ export enum Chain {
 }
 
 export namespace Chain {
-  export function getFirstRuneHeight(chain: Chain): u128 {
+  export function getFirstRuneHeight(chain: Chain): number {
     switch (chain) {
       case Chain.MAINNET:
-        return u128.saturatingMultiply(SUBSIDY_HALVING_INTERVAL, u128(4n));
+        return SUBSIDY_HALVING_INTERVAL * 4;
       case Chain.REGTEST:
-        return u128.saturatingMultiply(SUBSIDY_HALVING_INTERVAL, u128(0n));
+        return SUBSIDY_HALVING_INTERVAL * 0;
       case Chain.SIGNET:
-        return u128.saturatingMultiply(SUBSIDY_HALVING_INTERVAL, u128(0n));
+        return SUBSIDY_HALVING_INTERVAL * 0;
       case Chain.TESTNET:
-        return u128.saturatingMultiply(SUBSIDY_HALVING_INTERVAL, u128(12n));
+        return SUBSIDY_HALVING_INTERVAL * 12;
     }
   }
 }

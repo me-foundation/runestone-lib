@@ -27,7 +27,7 @@ type BigTypedNumber<T> = bigint & {
  */
 export type u128 = BigTypedNumber<'u128'>;
 
-const U128_MAX_BIGINT = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn;
+export const U128_MAX_BIGINT = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn;
 
 /**
  * Convert Number or BigInt to 128-bit unsigned integer.

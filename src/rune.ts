@@ -3,8 +3,8 @@ import { RESERVED, SUBSIDY_HALVING_INTERVAL } from './constants';
 import { u128 } from './u128';
 import _ from 'lodash';
 
-class Rune {
-  private static readonly STEPS = [
+export class Rune {
+  static readonly STEPS = [
     u128(0n),
     u128(26n),
     u128(702n),
@@ -35,18 +35,18 @@ class Rune {
     u128(166461473448801533683942072758341510102n),
   ];
 
-  constructor(private readonly value: u128) {}
+  constructor(readonly value: u128) {}
 
-  getMinimumAtHeight(chain: Chain, height: u128) {
+  static getMinimumAtHeight(chain: Chain, height: u128) {
     let offset = u128.saturatingAdd(height, u128(1));
 
-    const INTERVAL = u128(SUBSIDY_HALVING_INTERVAL / 12n);
+    const INTERVAL = u128(SUBSIDY_HALVING_INTERVAL / 12);
 
-    let startSubsidyInterval = Chain.getFirstRuneHeight(chain);
+    let startSubsidyInterval = u128(Chain.getFirstRuneHeight(chain));
 
     let endSubsidyInterval = u128.saturatingAdd(
       startSubsidyInterval,
-      SUBSIDY_HALVING_INTERVAL
+      u128(SUBSIDY_HALVING_INTERVAL)
     );
 
     if (offset < startSubsidyInterval) {
@@ -60,17 +60,18 @@ class Rune {
     let progress = u128.saturatingSub(offset, startSubsidyInterval);
 
     let length = u128.saturatingSub(u128(12n), u128(progress / INTERVAL));
+    let lengthNumber = Number(length & 0xffff_ffffn);
 
-    let endStepInterval = Rune.STEPS[Number(length)];
+    let endStepInterval = Rune.STEPS[lengthNumber];
 
-    let startStepInterval = Rune.STEPS[Number(length - 1n)];
+    let startStepInterval = Rune.STEPS[lengthNumber - 1];
 
     let remainder = u128(progress % INTERVAL);
 
     return new Rune(
       u128(
-        startStepInterval -
-          ((startStepInterval - endStepInterval) * remainder) / INTERVAL
+        endStepInterval -
+          ((endStepInterval - startStepInterval) * remainder) / INTERVAL
       )
     );
   }
@@ -90,12 +91,10 @@ class Rune {
       return 'BCGDENLQRQWDSLRUGSNLBTMFIJAV';
     }
 
-    let result = '';
-
     n = u128(n + 1n);
     let symbol = '';
     while (n > 0) {
-      symbol += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Number((n - 1n) % 26n)];
+      symbol = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Number((n - 1n) % 26n)] + symbol;
       n = u128((n - 1n) / 26n);
     }
 
@@ -103,7 +102,7 @@ class Rune {
   }
 
   static fromString(s: string) {
-    let x = u128(128);
+    let x = u128(0);
     for (const i of _.range(s.length)) {
       const c = s[i];
 
@@ -118,6 +117,6 @@ class Rune {
       }
     }
 
-    return x;
+    return new Rune(x);
   }
 }
