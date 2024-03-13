@@ -1,7 +1,3 @@
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
-
 import { Rune } from '../src/rune';
 import { SpacedRune } from '../src/spacedrune';
 import { u128 } from '../src/u128';
