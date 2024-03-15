@@ -1,7 +1,3 @@
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
-
 import { RuneId } from '../src/runeid';
 import { u128 } from '../src/u128';
 
