@@ -1,5 +1,4 @@
 import { SUBSIDY_HALVING_INTERVAL } from './constants';
-import { u128 } from './u128';
 
 export enum Chain {
   MAINNET,
