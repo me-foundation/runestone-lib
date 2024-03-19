@@ -11,9 +11,9 @@ describe('tag', () => {
     const fields = new Map<u128, u128>();
     fields.set(u128(2), u128(3));
 
-    expect(Tag.take(fields, Tag.FLAGS)).toBe(3n);
+    expect(Tag.take(fields, Tag.FLAGS).unwrap()).toBe(3n);
     expect(fields.size).toBe(0);
-    expect(Tag.take(fields, Tag.FLAGS)).toBeUndefined();
+    expect(Tag.take(fields, Tag.FLAGS).isNone()).toBe(true);
   });
 
   test('encode', () => {
