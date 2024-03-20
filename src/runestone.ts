@@ -13,20 +13,9 @@ import _ from 'lodash';
 import { Option, Some, None, isSome } from '@sniptt/monads';
 import { Rune } from './rune';
 import { Flag } from './flag';
+import { Instruction, decompileScriptAllBuffer } from './utils';
 
-const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
-
-type Instruction = number | Buffer;
-
-namespace Instruction {
-  export function isNumber(instruction: Instruction): instruction is number {
-    return typeof instruction === 'number';
-  }
-
-  export function isBuffer(instruction: Instruction): instruction is Buffer {
-    return typeof instruction !== 'number';
-  }
-}
+export const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
 
 export class Runestone {
   constructor(
@@ -38,23 +27,31 @@ export class Runestone {
   ) {}
 
   static fromTransaction(transaction: bitcoin.Transaction): Option<Runestone> {
+    try {
+      return Runestone.decipher(transaction);
+    } catch (e) {
+      return None;
+    }
+  }
+
+  static decipher(transaction: bitcoin.Transaction): Option<Runestone> {
     const payload = Runestone.payload(transaction);
-    if (!payload) {
+    if (payload.isNone()) {
       return None;
     }
 
-    const integers = Runestone.integers(payload);
+    const integers = Runestone.integers(payload.unwrap());
 
     const { fields, edicts } = Message.fromIntegers(integers);
 
     const claim = Tag.take(fields, Tag.CLAIM);
 
     const deadline = Tag.take(fields, Tag.DEADLINE).andThen((value) =>
-      value < 0xffff_ffffn ? Some(Number(value)) : None
+      value <= 0xffff_ffffn ? Some(Number(value)) : None
     );
 
     const defaultOutput = Tag.take(fields, Tag.DEFAULT_OUTPUT).andThen(
-      (value) => (value < 0xffff_ffffn ? Some(Number(value)) : None)
+      (value) => (value <= 0xffff_ffffn ? Some(Number(value)) : None)
     );
 
     const divisibility = Tag.take(fields, Tag.DIVISIBILITY)
@@ -75,7 +72,7 @@ export class Runestone {
 
     const symbol = Tag.take(fields, Tag.SYMBOL)
       .andThen<number>((value) =>
-        value < 0xffff_ffffn ? Some(Number(value)) : None
+        value <= 0xffff_ffffn ? Some(Number(value)) : None
       )
       .andThen<string>((value) => {
         try {
@@ -86,7 +83,7 @@ export class Runestone {
       });
 
     const term = Tag.take(fields, Tag.TERM).andThen((value) =>
-      value < 0xffff_ffffn ? Some(Number(value)) : None
+      value <= 0xffff_ffffn ? Some(Number(value)) : None
     );
 
     let flags = Tag.take(fields, Tag.FLAGS).unwrapOr(u128(0));
@@ -134,11 +131,11 @@ export class Runestone {
 
     if (this.etching.isSome()) {
       const etching = this.etching.unwrap();
-      const flags = u128(0);
-      Flag.set(flags, Flag.ETCH);
+      let flags = u128(0);
+      flags = Flag.set(flags, Flag.ETCH);
 
       if (etching.mint.isSome()) {
-        Flag.set(flags, Flag.MINT);
+        flags = Flag.set(flags, Flag.MINT);
       }
 
       payloads.push(Tag.encode(Tag.FLAGS, flags));
@@ -222,9 +219,13 @@ export class Runestone {
     return bitcoin.script.compile(stack);
   }
 
-  static payload(transaction: bitcoin.Transaction): Buffer | null {
+  static payload(transaction: bitcoin.Transaction): Option<Buffer> {
     for (const output of transaction.outs) {
-      const instructions = bitcoin.script.decompile(output.script) ?? [];
+      const instructions = decompileScriptAllBuffer(output.script);
+      if (instructions === null) {
+        throw new Error('unable to decompile');
+      }
+
       let nextInstruction: Instruction | undefined;
 
       nextInstruction = instructions.shift();
@@ -249,10 +250,10 @@ export class Runestone {
         }
       }
 
-      return Buffer.concat(payloads);
+      return Some(Buffer.concat(payloads));
     }
 
-    return null;
+    return None;
   }
 
   static integers(payload: Buffer): u128[] {
