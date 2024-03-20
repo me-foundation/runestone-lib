@@ -22,6 +22,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@sniptt/monads": "^0.5.10",
     "bip86": "^0.0.3",
     "bitcoinjs-lib": "^6.1.5",
     "ecpair": "^2.1.0",

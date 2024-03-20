@@ -1,3 +1,4 @@
+import { None, Option, Some } from '@sniptt/monads';
 import { u128 } from './u128';
 
 export enum Tag {
@@ -18,11 +19,11 @@ export enum Tag {
 }
 
 export namespace Tag {
-  export function take(fields: Map<u128, u128>, tag: Tag): u128 | undefined {
+  export function take(fields: Map<u128, u128>, tag: Tag): Option<u128> {
     const key = u128(tag);
     const value = fields.get(key);
     fields.delete(key);
-    return value;
+    return value ? Some(value) : None;
   }
 
   export function encode(tag: Tag, value: u128): Buffer {

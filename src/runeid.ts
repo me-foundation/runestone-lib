@@ -4,7 +4,7 @@ export class RuneId {
   constructor(readonly height: number, readonly index: number) {}
 
   toU128() {
-    return u128((this.height << 16) | this.index);
+    return u128((BigInt(this.height) << 16n) | BigInt(this.index));
   }
 
   toString() {
