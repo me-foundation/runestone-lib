@@ -1,4 +1,5 @@
 import {
+  MAGIC_NUMBER,
   MAX_DIVISIBILITY,
   MAX_LIMIT,
   MAX_SCRIPT_ELEMENT_SIZE,
@@ -13,7 +14,7 @@ import _ from 'lodash';
 import { Option, Some, None } from '@sniptt/monads';
 import { Rune } from './rune';
 import { Flag } from './flag';
-import { Instruction, decompileScriptAllBuffer } from './utils';
+import { Instruction, tryConvertInstructionToBuffer } from './utils';
 import { RuneId } from './runeid';
 
 export const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
@@ -214,7 +215,7 @@ export class Runestone {
 
     const stack: bitcoin.Stack = [];
     stack.push(bitcoin.opcodes.OP_RETURN);
-    stack.push(Buffer.from('RUNE_TEST'));
+    stack.push(MAGIC_NUMBER);
 
     const payload = Buffer.concat(payloads);
     let i = 0;
@@ -227,7 +228,7 @@ export class Runestone {
 
   static payload(transaction: bitcoin.Transaction): Option<Buffer> {
     for (const output of transaction.outs) {
-      const instructions = decompileScriptAllBuffer(output.script);
+      const instructions = bitcoin.script.decompile(output.script);
       if (instructions === null) {
         throw new Error('unable to decompile');
       }
@@ -242,15 +243,16 @@ export class Runestone {
       nextInstruction = instructions.shift();
       if (
         !nextInstruction ||
-        Instruction.isNumber(nextInstruction) ||
-        Buffer.compare(nextInstruction, Buffer.from('RUNE_TEST')) !== 0
+        Instruction.isBuffer(nextInstruction) ||
+        nextInstruction !== MAGIC_NUMBER
       ) {
         continue;
       }
 
       let payloads: Buffer[] = [];
 
-      for (const result of instructions) {
+      for (const instruction of instructions) {
+        const result = tryConvertInstructionToBuffer(instruction);
         if (Instruction.isBuffer(result)) {
           payloads.push(result);
         }
