@@ -18,6 +18,10 @@ export namespace Edict {
   ): Option<Edict> {
     const runeId = RuneId.fromU128(id);
 
+    if (runeId.block === 0 && runeId.tx > 0) {
+      return None;
+    }
+
     if (output > u128(tx.outs.length)) {
       return None;
     }
