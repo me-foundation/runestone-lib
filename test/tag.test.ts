@@ -21,7 +21,7 @@ describe('tag', () => {
   });
 
   test('burn and nop are one byte', () => {
-    expect(Tag.encode(Tag.BURN, u128(0)).length).toBe(2);
+    expect(Tag.encode(Tag.CENOTAPH, u128(0)).length).toBe(2);
     expect(Tag.encode(Tag.NOP, u128(0)).length).toBe(2);
   });
 });

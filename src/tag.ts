@@ -10,7 +10,7 @@ export enum Tag {
   DEADLINE = 10,
   DEFAULT_OUTPUT = 12,
   CLAIM = 14,
-  BURN = 126,
+  CENOTAPH = 126,
 
   DIVISIBILITY = 1,
   SPACERS = 3,

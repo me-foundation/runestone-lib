@@ -3,7 +3,7 @@ import { u128 } from './u128';
 export enum Flag {
   ETCH = 0,
   MINT = 1,
-  BURN = 127,
+  CENOTAPH = 127,
 }
 
 export namespace Flag {
