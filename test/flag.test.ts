@@ -4,7 +4,7 @@ import { u128 } from '../src/u128';
 describe('flag', () => {
   test('mask', () => {
     expect(Flag.mask(Flag.ETCH)).toBe(0b1n);
-    expect(Flag.mask(Flag.BURN)).toBe(1n << 127n);
+    expect(Flag.mask(Flag.CENOTAPH)).toBe(1n << 127n);
   });
 
   test('take', () => {

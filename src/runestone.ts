@@ -21,7 +21,7 @@ export const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
 
 export class Runestone {
   constructor(
-    readonly burn: boolean,
+    readonly cenotaph: boolean,
     readonly claim: Option<RuneId>,
     readonly defaultOutput: Option<number>,
     readonly edicts: Edict[],
@@ -44,7 +44,7 @@ export class Runestone {
 
     const integers = Runestone.integers(payload.unwrap());
 
-    const { burn, edicts, fields } = Message.fromIntegers(
+    const { cenotaph, edicts, fields } = Message.fromIntegers(
       transaction,
       integers
     );
@@ -121,7 +121,7 @@ export class Runestone {
 
     return Some(
       new Runestone(
-        burn ||
+        cenotaph ||
           flags !== 0n ||
           [...fields.keys()].find((tag) => tag % 2n === 0n) !== undefined,
         claim.map((value) => RuneId.fromU128(value)),
@@ -194,8 +194,8 @@ export class Runestone {
       payloads.push(Tag.encode(Tag.DEFAULT_OUTPUT, u128(defaultOutput)));
     }
 
-    if (this.burn) {
-      payloads.push(Tag.encode(Tag.BURN, u128(0)));
+    if (this.cenotaph) {
+      payloads.push(Tag.encode(Tag.CENOTAPH, u128(0)));
     }
 
     if (this.edicts.length) {
@@ -278,7 +278,7 @@ export class Runestone {
 
 export class Message {
   constructor(
-    readonly burn: boolean,
+    readonly cenotaph: boolean,
     readonly edicts: Edict[],
     readonly fields: Map<u128, u128>
   ) {}
@@ -286,7 +286,7 @@ export class Message {
   static fromIntegers(tx: bitcoin.Transaction, payload: u128[]): Message {
     const edicts: Edict[] = [];
     const fields = new Map<u128, u128>();
-    let burn = false;
+    let cenotaph = false;
 
     for (const i of _.range(0, payload.length, 2)) {
       const tag = payload[i];
@@ -304,7 +304,7 @@ export class Message {
           if (optionEdict.isSome()) {
             edicts.push(optionEdict.unwrap());
           } else {
-            burn = true;
+            cenotaph = true;
           }
         }
         break;
@@ -320,6 +320,6 @@ export class Message {
       }
     }
 
-    return new Message(burn, edicts, fields);
+    return new Message(cenotaph, edicts, fields);
   }
 }
