@@ -12,7 +12,10 @@ import { decompileScriptAllBuffer } from '../src/utils';
 import { Edict } from '../src/edict';
 import { Etching } from '../src/etching';
 import { RuneId } from '../src/runeid';
-import { Mint } from '../src/mint';
+
+function createRuneId(tx: number) {
+  return new RuneId(0, tx);
+}
 
 describe('runestone', () => {
   function decipher(integers: u128[]): Runestone {
@@ -117,15 +120,15 @@ describe('runestone', () => {
           Buffer.from('RUNE_TEST'),
           Buffer.from([0, 1]),
           bitcoin.opcodes.OP_VERIFY,
-          Buffer.from([2, 3]),
+          Buffer.from([2, 0]),
         ])
       ).unwrap()
     ).toMatchObject({
       edicts: [
         {
-          id: u128(1),
+          id: createRuneId(1),
           amount: u128(2),
-          output: u128(3),
+          output: u128(0),
         },
       ],
     });
@@ -166,17 +169,19 @@ describe('runestone', () => {
   });
 
   test('deciphering_non_empty_runestone_is_successful', () => {
-    expect(decipher([Tag.BODY, 1, 2, 3].map(u128))).toMatchObject({
-      edicts: [{ id: 1n, amount: 2n, output: 3n }],
+    expect(decipher([Tag.BODY, 1, 2, 0].map(u128))).toMatchObject({
+      edicts: [{ id: { block: 0, tx: 1 }, amount: 2n, output: 0n }],
     });
   });
 
   test('decipher_etching', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.BODY, 1, 2, 3].map(u128)
+      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.BODY, 1, 2, 0].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -188,12 +193,14 @@ describe('runestone', () => {
 
   test('decipher_etching_with_rune', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.RUNE, 4, Tag.BODY, 1, 2, 3].map(
+      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.RUNE, 4, Tag.BODY, 1, 2, 0].map(
         u128
       )
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -205,12 +212,14 @@ describe('runestone', () => {
 
   test('etch_flag_is_required_to_etch_rune_even_if_mint_is_set', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.MINT), Tag.TERM, 4, Tag.BODY, 1, 2, 3].map(
+      [Tag.FLAGS, Flag.mask(Flag.MINT), Tag.TERM, 4, Tag.BODY, 1, 2, 0].map(
         u128
       )
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
     expect(runestone.etching.isNone()).toBe(true);
   });
 
@@ -224,11 +233,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -252,11 +263,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -282,11 +295,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -297,24 +312,37 @@ describe('runestone', () => {
   });
 
   test('unrecognized_odd_tag_is_ignored', () => {
-    const runestone = decipher([Tag.NOP, 100, Tag.BODY, 1, 2, 3].map(u128));
+    const runestone = decipher([Tag.NOP, 100, Tag.BODY, 1, 2, 0].map(u128));
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
   });
 
   test('unrecognized_even_tag_is_burn', () => {
-    const runestone = decipher([Tag.BURN, 0, Tag.BODY, 1, 2, 3].map(u128));
+    const runestone = decipher([Tag.BURN, 0, Tag.BODY, 1, 2, 0].map(u128));
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
     expect(runestone.burn).toBe(true);
   });
 
   test('unrecognized_flag_is_burn', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.BURN), Tag.BODY, 1, 2, 3].map(u128)
+      [Tag.FLAGS, Flag.mask(Flag.BURN), Tag.BODY, 1, 2, 0].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
+    expect(runestone.burn).toBe(true);
+  });
+
+  test('output_over_max_is_burn', () => {
+    const runestone = decipher([Tag.BODY, 1, 2, 2].map(u128));
+
+    expect(runestone.edicts).toEqual([]);
     expect(runestone.burn).toBe(true);
   });
 
@@ -334,13 +362,15 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
         4,
         5,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -362,11 +392,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(5);
@@ -388,11 +420,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -414,11 +448,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -440,11 +476,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -476,11 +514,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(1);
@@ -510,13 +550,15 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
         4,
         5,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
     expect(runestone.etching.isNone()).toBe(true);
   });
 
@@ -534,11 +576,13 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(1);
@@ -557,30 +601,32 @@ describe('runestone', () => {
         Tag.BODY,
         1,
         2,
-        3,
+        0,
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
     expect(runestone.etching.isSome()).toBe(true);
   });
 
   test('runestone_may_contain_multiple_edicts', () => {
-    const runestone = decipher([Tag.BODY, 1, 2, 3, 3, 5, 6].map(u128));
+    const runestone = decipher([Tag.BODY, 1, 2, 0, 3, 5, 0].map(u128));
 
     expect(runestone.edicts).toEqual([
-      { id: 1n, amount: 2n, output: 3n },
-      { id: 4n, amount: 5n, output: 6n },
+      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(4), amount: 5n, output: 0n },
     ]);
   });
 
-  test('id_deltas_saturate_to_max', () => {
-    const runestone = decipher([Tag.BODY, 1, 2, 3, u128.MAX, 5, 6].map(u128));
+  test('runestones_with_invalid_rune_ids_are_burn', () => {
+    const runestone = decipher([Tag.BODY, 1, 2, 0, u128.MAX, 5, 6].map(u128));
 
     expect(runestone.edicts).toEqual([
-      { id: 1n, amount: 2n, output: 3n },
-      { id: u128.MAX, amount: 5n, output: 6n },
+      { id: createRuneId(1), amount: 2n, output: 0n },
     ]);
+    expect(runestone.burn).toBe(true);
   });
 
   test('payload_pushes_are_concatenated', () => {
@@ -595,11 +641,13 @@ describe('runestone', () => {
         u128.encodeVarInt(u128(Tag.BODY)),
         u128.encodeVarInt(u128(1)),
         u128.encodeVarInt(u128(2)),
-        u128.encodeVarInt(u128(3)),
+        u128.encodeVarInt(u128(0)),
       ])
     ).unwrap();
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(5);
@@ -609,7 +657,7 @@ describe('runestone', () => {
   });
 
   test('runestone_may_be_in_second_output', () => {
-    const payload = getPayload([0, 1, 2, 3].map(u128));
+    const payload = getPayload([0, 1, 2, 0].map(u128));
 
     const transaction = new bitcoin.Transaction();
 
@@ -625,11 +673,13 @@ describe('runestone', () => {
 
     const runestone = Runestone.decipher(transaction).unwrap();
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
   });
 
   test('runestone_may_be_after_non_matching_op_return', () => {
-    const payload = getPayload([0, 1, 2, 3].map(u128));
+    const payload = getPayload([0, 1, 2, 0].map(u128));
 
     const transaction = new bitcoin.Transaction();
 
@@ -648,7 +698,9 @@ describe('runestone', () => {
 
     const runestone = Runestone.decipher(transaction).unwrap();
 
-    expect(runestone.edicts).toEqual([{ id: 1n, amount: 2n, output: 3n }]);
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0n },
+    ]);
   });
 
   test('runestone_size', () => {
@@ -704,7 +756,7 @@ describe('runestone', () => {
       [
         {
           amount: u128(0),
-          id: new RuneId(0, 0).toU128(),
+          id: new RuneId(0, 0),
           output: u128(0),
         },
       ],
@@ -718,7 +770,7 @@ describe('runestone', () => {
       [
         {
           amount: u128.MAX,
-          id: new RuneId(0, 0).toU128(),
+          id: new RuneId(0, 0),
           output: u128(0),
         },
       ],
@@ -732,7 +784,7 @@ describe('runestone', () => {
       [
         {
           amount: u128(0),
-          id: new RuneId(1_000_000, 0xffff).toU128(),
+          id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
       ],
@@ -744,7 +796,7 @@ describe('runestone', () => {
       [
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff).toU128(),
+          id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
       ],
@@ -756,12 +808,12 @@ describe('runestone', () => {
       [
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff).toU128(),
+          id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff).toU128(),
+          id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
       ],
@@ -773,17 +825,17 @@ describe('runestone', () => {
       [
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff).toU128(),
+          id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff).toU128(),
+          id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff).toU128(),
+          id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
       ],
@@ -794,7 +846,7 @@ describe('runestone', () => {
     testcase(
       _.range(4).map(() => ({
         amount: u128(0xffff_ffff_ffff_ffffn),
-        id: new RuneId(1_000_000, 0xffff).toU128(),
+        id: new RuneId(1_000_000, 0xffff),
         output: u128(0),
       })),
       None,
@@ -804,7 +856,7 @@ describe('runestone', () => {
     testcase(
       _.range(5).map(() => ({
         amount: u128(0xffff_ffff_ffff_ffffn),
-        id: new RuneId(1_000_000, 0xffff).toU128(),
+        id: new RuneId(1_000_000, 0xffff),
         output: u128(0),
       })),
       None,
@@ -814,7 +866,7 @@ describe('runestone', () => {
     testcase(
       _.range(5).map(() => ({
         amount: u128(0xffff_ffff_ffff_ffffn),
-        id: new RuneId(0, 0xffff).toU128(),
+        id: new RuneId(0, 0xffff),
         output: u128(0),
       })),
       None,
@@ -824,7 +876,7 @@ describe('runestone', () => {
     testcase(
       _.range(5).map(() => ({
         amount: u128(1_000_000_000_000_000_000n),
-        id: new RuneId(1_000_000, 0xffff).toU128(),
+        id: new RuneId(1_000_000, 0xffff),
         output: u128(0),
       })),
       None,
@@ -881,7 +933,7 @@ describe('runestone', () => {
       expect(txnRunestone.burn).toBe(runestone.burn);
       expect(txnRunestone.claim.isSome()).toBe(runestone.claim.isSome());
       if (txnRunestone.claim.isSome()) {
-        expect(txnRunestone.claim.unwrap()).toBe(runestone.claim.unwrap());
+        expect(txnRunestone.claim.unwrap()).toEqual(runestone.claim.unwrap());
       }
 
       expect(txnRunestone.defaultOutput.isSome()).toBe(
@@ -939,18 +991,18 @@ describe('runestone', () => {
     testcase(
       new Runestone(
         true,
-        Some(u128(12)),
+        Some(RuneId.fromU128(u128(12))),
         Some(11),
         [
           {
             amount: u128(8),
-            id: u128(9),
-            output: u128(10),
+            id: createRuneId(9),
+            output: u128(0),
           },
           {
             amount: u128(5),
-            id: u128(6),
-            output: u128(7),
+            id: createRuneId(6),
+            output: u128(0),
           },
         ],
         Some(
@@ -993,10 +1045,10 @@ describe('runestone', () => {
         Tag.BODY,
         6,
         5,
-        7,
+        0,
         3,
         8,
-        10,
+        0,
       ]
     );
 
@@ -1032,7 +1084,7 @@ describe('runestone', () => {
         None,
         None,
         _.range(173).map((i) => ({
-          id: u128(0),
+          id: createRuneId(0),
           amount: u128(0),
           output: u128(0),
         })),
@@ -1049,7 +1101,7 @@ describe('runestone', () => {
         None,
         None,
         _.range(174).map((i) => ({
-          id: u128(0),
+          id: createRuneId(0),
           amount: u128(0),
           output: u128(0),
         })),

@@ -10,17 +10,18 @@ import { Tag } from './tag';
 import { u128 } from './u128';
 import * as bitcoin from 'bitcoinjs-lib';
 import _ from 'lodash';
-import { Option, Some, None, isSome } from '@sniptt/monads';
+import { Option, Some, None } from '@sniptt/monads';
 import { Rune } from './rune';
 import { Flag } from './flag';
 import { Instruction, decompileScriptAllBuffer } from './utils';
+import { RuneId } from './runeid';
 
 export const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
 
 export class Runestone {
   constructor(
     readonly burn: boolean,
-    readonly claim: Option<u128>,
+    readonly claim: Option<RuneId>,
     readonly defaultOutput: Option<number>,
     readonly edicts: Edict[],
     readonly etching: Option<Etching>
@@ -42,7 +43,10 @@ export class Runestone {
 
     const integers = Runestone.integers(payload.unwrap());
 
-    const { fields, edicts } = Message.fromIntegers(integers);
+    const { burn, edicts, fields } = Message.fromIntegers(
+      transaction,
+      integers
+    );
 
     const claim = Tag.take(fields, Tag.CLAIM);
 
@@ -116,9 +120,10 @@ export class Runestone {
 
     return Some(
       new Runestone(
-        flags !== 0n ||
+        burn ||
+          flags !== 0n ||
           [...fields.keys()].find((tag) => tag % 2n === 0n) !== undefined,
-        claim,
+        claim.map((value) => RuneId.fromU128(value)),
         defaultOutput,
         edicts,
         etching
@@ -180,7 +185,7 @@ export class Runestone {
 
     if (this.claim.isSome()) {
       const claim = this.claim.unwrap();
-      payloads.push(Tag.encode(Tag.CLAIM, claim));
+      payloads.push(Tag.encode(Tag.CLAIM, claim.toU128()));
     }
 
     if (this.defaultOutput.isSome()) {
@@ -199,10 +204,11 @@ export class Runestone {
 
       let id = u128(0);
       for (const edict of edicts) {
-        payloads.push(u128.encodeVarInt(u128(edict.id - id)));
+        const next = edict.id.toU128();
+        payloads.push(u128.encodeVarInt(u128(next - id)));
         payloads.push(u128.encodeVarInt(edict.amount));
         payloads.push(u128.encodeVarInt(edict.output));
-        id = edict.id;
+        id = next;
       }
     }
 
@@ -269,11 +275,16 @@ export class Runestone {
 }
 
 export class Message {
-  constructor(readonly fields: Map<u128, u128>, readonly edicts: Edict[]) {}
+  constructor(
+    readonly burn: boolean,
+    readonly edicts: Edict[],
+    readonly fields: Map<u128, u128>
+  ) {}
 
-  static fromIntegers(payload: u128[]): Message {
+  static fromIntegers(tx: bitcoin.Transaction, payload: u128[]): Message {
     const edicts: Edict[] = [];
     const fields = new Map<u128, u128>();
+    let burn = false;
 
     for (const i of _.range(0, payload.length, 2)) {
       const tag = payload[i];
@@ -286,11 +297,13 @@ export class Message {
           }
 
           id = u128.saturatingAdd(id, chunk[0]);
-          edicts.push({
-            id,
-            amount: chunk[1],
-            output: chunk[2],
-          });
+
+          const optionEdict = Edict.fromIntegers(tx, id, chunk[1], chunk[2]);
+          if (optionEdict.isSome()) {
+            edicts.push(optionEdict.unwrap());
+          } else {
+            burn = true;
+          }
         }
         break;
       }
@@ -305,6 +318,6 @@ export class Message {
       }
     }
 
-    return new Message(fields, edicts);
+    return new Message(burn, edicts, fields);
   }
 }
