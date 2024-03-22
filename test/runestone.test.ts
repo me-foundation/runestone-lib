@@ -5,10 +5,9 @@ import { u128 } from '../src/u128';
 import { None, Option, Some } from '@sniptt/monads';
 import { Tag } from '../src/tag';
 import { Flag } from '../src/flag';
-import { MAX_DIVISIBILITY } from '../src/constants';
+import { MAGIC_NUMBER, MAX_DIVISIBILITY } from '../src/constants';
 import { Rune } from '../src/rune';
 import { SpacedRune } from '../src/spacedrune';
-import { decompileScriptAllBuffer } from '../src/utils';
 import { Edict } from '../src/edict';
 import { Etching } from '../src/etching';
 import { RuneId } from '../src/runeid';
@@ -22,7 +21,7 @@ describe('runestone', () => {
     return Runestone.decipher(
       getSimpleTransaction([
         bitcoin.opcodes.OP_RETURN,
-        Buffer.from('RUNE_TEST'),
+        MAGIC_NUMBER,
         getPayload(integers),
       ])
     ).unwrap();
@@ -89,7 +88,7 @@ describe('runestone', () => {
   test('deciphering_valid_runestone_with_invalid_script_postfix_returns_script_error', () => {
     const transaction = getSimpleTransaction([
       bitcoin.opcodes.OP_RETURN,
-      Buffer.from('RUNE_TEST'),
+      MAGIC_NUMBER,
     ]);
 
     transaction.outs[0].script = Buffer.concat([
@@ -105,7 +104,7 @@ describe('runestone', () => {
       Runestone.decipher(
         getSimpleTransaction([
           bitcoin.opcodes.OP_RETURN,
-          Buffer.from('RUNE_TEST'),
+          MAGIC_NUMBER,
           Buffer.from([128]),
         ])
       ).isSome()
@@ -117,7 +116,7 @@ describe('runestone', () => {
       Runestone.decipher(
         getSimpleTransaction([
           bitcoin.opcodes.OP_RETURN,
-          Buffer.from('RUNE_TEST'),
+          MAGIC_NUMBER,
           Buffer.concat([
             Buffer.from([0]),
             u128.encodeVarInt(createRuneId(1).toU128()),
@@ -140,10 +139,7 @@ describe('runestone', () => {
   test('deciphering_empty_runestone_is_successful', () => {
     expect(
       Runestone.decipher(
-        getSimpleTransaction([
-          bitcoin.opcodes.OP_RETURN,
-          Buffer.from('RUNE_TEST'),
-        ])
+        getSimpleTransaction([bitcoin.opcodes.OP_RETURN, MAGIC_NUMBER])
       ).isSome()
     ).toBe(true);
   });
@@ -154,7 +150,7 @@ describe('runestone', () => {
     const transaction = new bitcoin.Transaction();
     let scriptPubKey = bitcoin.script.compile([
       bitcoin.opcodes.OP_RETURN,
-      Buffer.from('RUNE_TEST'),
+      MAGIC_NUMBER,
       4,
     ]);
     scriptPubKey = Buffer.concat([scriptPubKey, Buffer.from([4])]);
@@ -162,7 +158,7 @@ describe('runestone', () => {
     transaction.addOutput(
       bitcoin.script.compile([
         bitcoin.opcodes.OP_RETURN,
-        Buffer.from('RUNE_TEST'),
+        MAGIC_NUMBER,
         payload,
       ]),
       0
@@ -685,7 +681,7 @@ describe('runestone', () => {
     const runestone = Runestone.decipher(
       getSimpleTransaction([
         bitcoin.opcodes.OP_RETURN,
-        Buffer.from('RUNE_TEST'),
+        MAGIC_NUMBER,
         u128.encodeVarInt(u128(Tag.FLAGS)),
         u128.encodeVarInt(Flag.mask(Flag.ETCH)),
         u128.encodeVarInt(u128(Tag.DIVISIBILITY)),
@@ -717,7 +713,7 @@ describe('runestone', () => {
     transaction.addOutput(
       bitcoin.script.compile([
         bitcoin.opcodes.OP_RETURN,
-        Buffer.from('RUNE_TEST'),
+        MAGIC_NUMBER,
         payload,
       ]),
       0
@@ -742,7 +738,7 @@ describe('runestone', () => {
     transaction.addOutput(
       bitcoin.script.compile([
         bitcoin.opcodes.OP_RETURN,
-        Buffer.from('RUNE_TEST'),
+        MAGIC_NUMBER,
         payload,
       ]),
       0
@@ -758,18 +754,16 @@ describe('runestone', () => {
   test('runestone_size', () => {
     function testcase(edicts: Edict[], etching: Option<Etching>, size: number) {
       expect(
-        new Runestone(false, None, None, edicts, etching).encipher().length -
-          1 -
-          'RUNE_TEST'.length
+        new Runestone(false, None, None, edicts, etching).encipher().length
       ).toBe(size);
     }
 
-    testcase([], None, 1);
+    testcase([], None, 2);
 
     testcase(
       [],
       Some(new Etching(0, Some(new Rune(u128(0))), 0, None, None)),
-      6
+      7
     );
 
     testcase(
@@ -777,7 +771,7 @@ describe('runestone', () => {
       Some(
         new Etching(MAX_DIVISIBILITY, Some(new Rune(u128(0))), 0, None, None)
       ),
-      8
+      9
     );
 
     testcase(
@@ -795,13 +789,13 @@ describe('runestone', () => {
           })
         )
       ),
-      19
+      20
     );
 
     testcase(
       [],
       Some(new Etching(0, Some(new Rune(u128.MAX)), 0, None, None)),
-      24
+      25
     );
 
     testcase(
@@ -815,6 +809,44 @@ describe('runestone', () => {
       Some(
         new Etching(MAX_DIVISIBILITY, Some(new Rune(u128.MAX)), 0, None, None)
       ),
+      31
+    );
+
+    testcase(
+      [
+        {
+          amount: u128.MAX,
+          id: new RuneId(0, 0),
+          output: u128(0),
+        },
+      ],
+      Some(
+        new Etching(MAX_DIVISIBILITY, Some(new Rune(u128.MAX)), 0, None, None)
+      ),
+      49
+    );
+
+    testcase(
+      [
+        {
+          amount: u128(0),
+          id: new RuneId(1_000_000, 0xffff),
+          output: u128(0),
+        },
+      ],
+      None,
+      12
+    );
+
+    testcase(
+      [
+        {
+          amount: u128.MAX,
+          id: new RuneId(1_000_000, 0xffff),
+          output: u128(0),
+        },
+      ],
+      None,
       30
     );
 
@@ -822,44 +854,6 @@ describe('runestone', () => {
       [
         {
           amount: u128.MAX,
-          id: new RuneId(0, 0),
-          output: u128(0),
-        },
-      ],
-      Some(
-        new Etching(MAX_DIVISIBILITY, Some(new Rune(u128.MAX)), 0, None, None)
-      ),
-      48
-    );
-
-    testcase(
-      [
-        {
-          amount: u128(0),
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
-        },
-      ],
-      None,
-      11
-    );
-
-    testcase(
-      [
-        {
-          amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
-        },
-      ],
-      None,
-      29
-    );
-
-    testcase(
-      [
-        {
-          amount: u128.MAX,
           id: new RuneId(1_000_000, 0xffff),
           output: u128(0),
         },
@@ -870,7 +864,7 @@ describe('runestone', () => {
         },
       ],
       None,
-      50
+      51
     );
 
     testcase(
@@ -892,7 +886,7 @@ describe('runestone', () => {
         },
       ],
       None,
-      71
+      72
     );
 
     testcase(
@@ -902,7 +896,7 @@ describe('runestone', () => {
         output: u128(0),
       })),
       None,
-      56
+      57
     );
 
     testcase(
@@ -912,7 +906,7 @@ describe('runestone', () => {
         output: u128(0),
       })),
       None,
-      68
+      69
     );
 
     testcase(
@@ -922,7 +916,7 @@ describe('runestone', () => {
         output: u128(0),
       })),
       None,
-      65
+      66
     );
 
     testcase(
@@ -932,7 +926,7 @@ describe('runestone', () => {
         output: u128(0),
       })),
       None,
-      63
+      64
     );
   });
 
@@ -1143,7 +1137,7 @@ describe('runestone', () => {
         None
       ).encipher();
 
-      const instructions = decompileScriptAllBuffer(script);
+      const instructions = bitcoin.script.decompile(script);
       expect(instructions?.length).toBe(3);
     }
 
@@ -1160,7 +1154,7 @@ describe('runestone', () => {
         None
       ).encipher();
 
-      const instructions = decompileScriptAllBuffer(script);
+      const instructions = bitcoin.script.decompile(script);
       expect(instructions?.length).toBe(4);
     }
   });
