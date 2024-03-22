@@ -1,14 +1,14 @@
 import { u128 } from './u128';
 
 export class RuneId {
-  constructor(readonly height: number, readonly index: number) {}
+  constructor(readonly block: number, readonly tx: number) {}
 
   toU128() {
-    return u128((BigInt(this.height) << 16n) | BigInt(this.index));
+    return u128((BigInt(this.block) << 16n) | BigInt(this.tx));
   }
 
   toString() {
-    return `${this.height}:${this.index}`;
+    return `${this.block}:${this.tx}`;
   }
 
   static fromU128(n: u128) {
@@ -21,10 +21,10 @@ export class RuneId {
       throw new Error(`invalid rune ID: ${s}`);
     }
 
-    const [height, index] = parts;
-    if (!/^\d+$/.test(height) || !/^\d+$/.test(index)) {
+    const [block, tx] = parts;
+    if (!/^\d+$/.test(block) || !/^\d+$/.test(tx)) {
       throw new Error(`invalid rune ID: ${s}`);
     }
-    return new RuneId(Number(BigInt(height)), Number(BigInt(index)));
+    return new RuneId(Number(BigInt(block)), Number(BigInt(tx)));
   }
 }
