@@ -14,7 +14,7 @@ import { Etching } from '../src/etching';
 import { RuneId } from '../src/runeid';
 
 function createRuneId(tx: number) {
-  return new RuneId(0, tx);
+  return new RuneId(1, tx);
 }
 
 describe('runestone', () => {
@@ -118,7 +118,10 @@ describe('runestone', () => {
         getSimpleTransaction([
           bitcoin.opcodes.OP_RETURN,
           Buffer.from('RUNE_TEST'),
-          Buffer.from([0, 1]),
+          Buffer.concat([
+            Buffer.from([0]),
+            u128.encodeVarInt(createRuneId(1).toU128()),
+          ]),
           bitcoin.opcodes.OP_VERIFY,
           Buffer.from([2, 0]),
         ])
@@ -169,14 +172,23 @@ describe('runestone', () => {
   });
 
   test('deciphering_non_empty_runestone_is_successful', () => {
-    expect(decipher([Tag.BODY, 1, 2, 0].map(u128))).toMatchObject({
-      edicts: [{ id: { block: 0, tx: 1 }, amount: 2n, output: 0n }],
+    expect(
+      decipher([Tag.BODY, createRuneId(1).toU128(), 2, 0].map(u128))
+    ).toMatchObject({
+      edicts: [{ id: createRuneId(1), amount: 2n, output: 0n }],
     });
   });
 
   test('decipher_etching', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.BODY, 1, 2, 0].map(u128)
+      [
+        Tag.FLAGS,
+        Flag.mask(Flag.ETCH),
+        Tag.BODY,
+        createRuneId(1).toU128(),
+        2,
+        0,
+      ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
@@ -193,9 +205,16 @@ describe('runestone', () => {
 
   test('decipher_etching_with_rune', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.RUNE, 4, Tag.BODY, 1, 2, 0].map(
-        u128
-      )
+      [
+        Tag.FLAGS,
+        Flag.mask(Flag.ETCH),
+        Tag.RUNE,
+        4,
+        Tag.BODY,
+        createRuneId(1).toU128(),
+        2,
+        0,
+      ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
@@ -212,9 +231,16 @@ describe('runestone', () => {
 
   test('etch_flag_is_required_to_etch_rune_even_if_mint_is_set', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.MINT), Tag.TERM, 4, Tag.BODY, 1, 2, 0].map(
-        u128
-      )
+      [
+        Tag.FLAGS,
+        Flag.mask(Flag.MINT),
+        Tag.TERM,
+        4,
+        Tag.BODY,
+        createRuneId(1).toU128(),
+        2,
+        0,
+      ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
@@ -231,7 +257,7 @@ describe('runestone', () => {
         Tag.TERM,
         4,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -261,7 +287,7 @@ describe('runestone', () => {
         Tag.LIMIT,
         4,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -293,7 +319,7 @@ describe('runestone', () => {
         Tag.RUNE,
         5,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -312,7 +338,9 @@ describe('runestone', () => {
   });
 
   test('unrecognized_odd_tag_is_ignored', () => {
-    const runestone = decipher([Tag.NOP, 100, Tag.BODY, 1, 2, 0].map(u128));
+    const runestone = decipher(
+      [Tag.NOP, 100, Tag.BODY, createRuneId(1).toU128(), 2, 0].map(u128)
+    );
 
     expect(runestone.edicts).toEqual([
       { id: createRuneId(1), amount: 2n, output: 0n },
@@ -320,7 +348,9 @@ describe('runestone', () => {
   });
 
   test('unrecognized_even_tag_is_burn', () => {
-    const runestone = decipher([Tag.BURN, 0, Tag.BODY, 1, 2, 0].map(u128));
+    const runestone = decipher(
+      [Tag.BURN, 0, Tag.BODY, createRuneId(1).toU128(), 2, 0].map(u128)
+    );
 
     expect(runestone.edicts).toEqual([
       { id: createRuneId(1), amount: 2n, output: 0n },
@@ -330,7 +360,14 @@ describe('runestone', () => {
 
   test('unrecognized_flag_is_burn', () => {
     const runestone = decipher(
-      [Tag.FLAGS, Flag.mask(Flag.BURN), Tag.BODY, 1, 2, 0].map(u128)
+      [
+        Tag.FLAGS,
+        Flag.mask(Flag.BURN),
+        Tag.BODY,
+        createRuneId(1).toU128(),
+        2,
+        0,
+      ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
@@ -339,8 +376,19 @@ describe('runestone', () => {
     expect(runestone.burn).toBe(true);
   });
 
+  test('rune_id_with_zero_block_and_nonzero_tx_is_burn', () => {
+    const runestone = decipher(
+      [Tag.BODY, new RuneId(0, 1).toU128(), 2, 0].map(u128)
+    );
+
+    expect(runestone.edicts).toEqual([]);
+    expect(runestone.burn).toBe(true);
+  });
+
   test('output_over_max_is_burn', () => {
-    const runestone = decipher([Tag.BODY, 1, 2, 2].map(u128));
+    const runestone = decipher(
+      [Tag.BODY, createRuneId(1).toU128(), 2, 2].map(u128)
+    );
 
     expect(runestone.edicts).toEqual([]);
     expect(runestone.burn).toBe(true);
@@ -360,7 +408,7 @@ describe('runestone', () => {
         Tag.RUNE,
         4,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
         4,
@@ -390,7 +438,7 @@ describe('runestone', () => {
         Tag.DIVISIBILITY,
         5,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -418,7 +466,7 @@ describe('runestone', () => {
         Tag.DIVISIBILITY,
         MAX_DIVISIBILITY + 1,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -446,7 +494,7 @@ describe('runestone', () => {
         Tag.SYMBOL,
         0x110000,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -474,7 +522,7 @@ describe('runestone', () => {
         Tag.SYMBOL,
         97,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -512,7 +560,7 @@ describe('runestone', () => {
         Tag.LIMIT,
         3,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -548,7 +596,7 @@ describe('runestone', () => {
         Tag.LIMIT,
         3,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
         4,
@@ -574,7 +622,7 @@ describe('runestone', () => {
         Tag.SYMBOL,
         97,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -599,7 +647,7 @@ describe('runestone', () => {
         Tag.DIVISIBILITY,
         Tag.BODY,
         Tag.BODY,
-        1,
+        createRuneId(1).toU128(),
         2,
         0,
       ].map(u128)
@@ -612,7 +660,9 @@ describe('runestone', () => {
   });
 
   test('runestone_may_contain_multiple_edicts', () => {
-    const runestone = decipher([Tag.BODY, 1, 2, 0, 3, 5, 0].map(u128));
+    const runestone = decipher(
+      [Tag.BODY, createRuneId(1).toU128(), 2, 0, 3, 5, 0].map(u128)
+    );
 
     expect(runestone.edicts).toEqual([
       { id: createRuneId(1), amount: 2n, output: 0n },
@@ -621,7 +671,9 @@ describe('runestone', () => {
   });
 
   test('runestones_with_invalid_rune_ids_are_burn', () => {
-    const runestone = decipher([Tag.BODY, 1, 2, 0, u128.MAX, 5, 6].map(u128));
+    const runestone = decipher(
+      [Tag.BODY, createRuneId(1).toU128(), 2, 0, u128.MAX, 5, 6].map(u128)
+    );
 
     expect(runestone.edicts).toEqual([
       { id: createRuneId(1), amount: 2n, output: 0n },
@@ -639,7 +691,7 @@ describe('runestone', () => {
         u128.encodeVarInt(u128(Tag.DIVISIBILITY)),
         u128.encodeVarInt(u128(5)),
         u128.encodeVarInt(u128(Tag.BODY)),
-        u128.encodeVarInt(u128(1)),
+        u128.encodeVarInt(createRuneId(1).toU128()),
         u128.encodeVarInt(u128(2)),
         u128.encodeVarInt(u128(0)),
       ])
@@ -657,7 +709,7 @@ describe('runestone', () => {
   });
 
   test('runestone_may_be_in_second_output', () => {
-    const payload = getPayload([0, 1, 2, 0].map(u128));
+    const payload = getPayload([0, createRuneId(1).toU128(), 2, 0].map(u128));
 
     const transaction = new bitcoin.Transaction();
 
@@ -679,7 +731,7 @@ describe('runestone', () => {
   });
 
   test('runestone_may_be_after_non_matching_op_return', () => {
-    const payload = getPayload([0, 1, 2, 0].map(u128));
+    const payload = getPayload([0, createRuneId(1).toU128(), 2, 0].map(u128));
 
     const transaction = new bitcoin.Transaction();
 
@@ -1002,7 +1054,7 @@ describe('runestone', () => {
           {
             amount: u128(5),
             id: createRuneId(6),
-            output: u128(0),
+            output: u128(1),
           },
         ],
         Some(
@@ -1043,9 +1095,9 @@ describe('runestone', () => {
         Tag.BURN,
         0,
         Tag.BODY,
-        6,
+        createRuneId(6).toU128(),
         5,
-        0,
+        1,
         3,
         8,
         0,
@@ -1084,7 +1136,7 @@ describe('runestone', () => {
         None,
         None,
         _.range(173).map((i) => ({
-          id: createRuneId(0),
+          id: new RuneId(0, 0),
           amount: u128(0),
           output: u128(0),
         })),
