@@ -25,5 +25,6 @@ describe('SpacedRune', () => {
     testcase('A.B.C', 'ABC', 0b11);
     testcase('A•B', 'AB', 0b1);
     testcase('A•B•C', 'ABC', 0b11);
+    testcase('A•BC', 'ABC', 0b1);
   });
 });
