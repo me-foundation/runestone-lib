@@ -1,7 +1,7 @@
 import * as bitcoin from 'bitcoinjs-lib';
 import _ from 'lodash';
-import { MAX_SPACERS, Runestone } from '../src/runestone';
-import { u128 } from '../src/u128';
+import { MAX_SPACERS, Runestone, isValidPayload } from '../src/runestone';
+import { U32_MAX, u128 } from '../src/u128';
 import { None, Option, Some } from '@sniptt/monads';
 import { Tag } from '../src/tag';
 import { Flag } from '../src/flag';
@@ -111,28 +111,34 @@ describe('runestone', () => {
     ).toBe(true);
   });
 
-  test('non_push_opcodes_in_runestone_are_ignored', () => {
-    expect(
-      Runestone.decipher(
-        getSimpleTransaction([
-          bitcoin.opcodes.OP_RETURN,
-          MAGIC_NUMBER,
-          Buffer.concat([
-            Buffer.from([0]),
-            u128.encodeVarInt(createRuneId(1).toU128()),
-          ]),
-          bitcoin.opcodes.OP_VERIFY,
-          Buffer.from([2, 0]),
-        ])
-      ).unwrap()
-    ).toMatchObject({
-      edicts: [
-        {
-          id: createRuneId(1),
-          amount: u128(2),
-          output: u128(0),
-        },
-      ],
+  test('outputs_with_non_pushdata_opcodes_are_cenotaph', () => {
+    const transaction = new bitcoin.Transaction();
+    transaction.addOutput(
+      bitcoin.script.compile([
+        bitcoin.opcodes.OP_RETURN,
+        MAGIC_NUMBER,
+        bitcoin.opcodes.OP_VERIFY,
+        Buffer.from([0]),
+        u128.encodeVarInt(u128(1)),
+        u128.encodeVarInt(u128(1)),
+        Buffer.from([2, 0]),
+      ]),
+      0
+    );
+    transaction.addOutput(
+      bitcoin.script.compile([
+        bitcoin.opcodes.OP_RETURN,
+        MAGIC_NUMBER,
+        Buffer.from([0]),
+        u128.encodeVarInt(u128(1)),
+        u128.encodeVarInt(u128(1)),
+        Buffer.from([3, 0]),
+      ]),
+      0
+    );
+
+    expect(Runestone.decipher(transaction).unwrap()).toMatchObject({
+      cenotaph: true,
     });
   });
 
@@ -168,27 +174,18 @@ describe('runestone', () => {
   });
 
   test('deciphering_non_empty_runestone_is_successful', () => {
-    expect(
-      decipher([Tag.BODY, createRuneId(1).toU128(), 2, 0].map(u128))
-    ).toMatchObject({
-      edicts: [{ id: createRuneId(1), amount: 2n, output: 0n }],
+    expect(decipher([Tag.BODY, 1, 1, 2, 0].map(u128))).toMatchObject({
+      edicts: [{ id: createRuneId(1), amount: 2n, output: 0 }],
     });
   });
 
   test('decipher_etching', () => {
     const runestone = decipher(
-      [
-        Tag.FLAGS,
-        Flag.mask(Flag.ETCH),
-        Tag.BODY,
-        createRuneId(1).toU128(),
-        2,
-        0,
-      ].map(u128)
+      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.BODY, 1, 1, 2, 0].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -201,20 +198,13 @@ describe('runestone', () => {
 
   test('decipher_etching_with_rune', () => {
     const runestone = decipher(
-      [
-        Tag.FLAGS,
-        Flag.mask(Flag.ETCH),
-        Tag.RUNE,
-        4,
-        Tag.BODY,
-        createRuneId(1).toU128(),
-        2,
-        0,
-      ].map(u128)
+      [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.RUNE, 4, Tag.BODY, 1, 1, 2, 0].map(
+        u128
+      )
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -227,20 +217,13 @@ describe('runestone', () => {
 
   test('etch_flag_is_required_to_etch_rune_even_if_mint_is_set', () => {
     const runestone = decipher(
-      [
-        Tag.FLAGS,
-        Flag.mask(Flag.MINT),
-        Tag.TERM,
-        4,
-        Tag.BODY,
-        createRuneId(1).toU128(),
-        2,
-        0,
-      ].map(u128)
+      [Tag.FLAGS, Flag.mask(Flag.MINT), Tag.TERM, 4, Tag.BODY, 1, 1, 2, 0].map(
+        u128
+      )
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
     expect(runestone.etching.isNone()).toBe(true);
   });
@@ -253,14 +236,15 @@ describe('runestone', () => {
         Tag.TERM,
         4,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -283,14 +267,15 @@ describe('runestone', () => {
         Tag.LIMIT,
         4,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -305,7 +290,19 @@ describe('runestone', () => {
     expect(mint.limit.unwrap()).toBe(4n);
   });
 
-  test('duplicate_tags_are_ignored', () => {
+  test('invalid_varint_produces_cenotaph', () => {
+    expect(
+      Runestone.decipher(
+        getSimpleTransaction([
+          bitcoin.opcodes.OP_RETURN,
+          MAGIC_NUMBER,
+          Buffer.from([128]),
+        ])
+      ).unwrap()
+    ).toMatchObject({ cenotaph: true });
+  });
+
+  test('duplicate_even_tags_produce_cenotaph', () => {
     const runestone = decipher(
       [
         Tag.FLAGS,
@@ -315,15 +312,17 @@ describe('runestone', () => {
         Tag.RUNE,
         5,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
+    expect(runestone.cenotaph).toBe(true);
 
     const etching = runestone.etching.unwrap();
     expect(etching.divisibility).toBe(0);
@@ -333,58 +332,62 @@ describe('runestone', () => {
     expect(etching.mint.isNone()).toBe(true);
   });
 
-  test('unrecognized_odd_tag_is_ignored', () => {
-    const runestone = decipher(
-      [Tag.NOP, 100, Tag.BODY, createRuneId(1).toU128(), 2, 0].map(u128)
-    );
-
-    expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
-    ]);
-  });
-
-  test('runestone_with_unrecognized_even_tag_is_cenotaph', () => {
-    const runestone = decipher(
-      [Tag.CENOTAPH, 0, Tag.BODY, createRuneId(1).toU128(), 2, 0].map(u128)
-    );
-
-    expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
-    ]);
-    expect(runestone.cenotaph).toBe(true);
-  });
-
-  test('runestone_with_unrecognized_flag_is_cenotaph', () => {
+  test('duplicate_odd_tags_are_ignored', () => {
     const runestone = decipher(
       [
         Tag.FLAGS,
-        Flag.mask(Flag.CENOTAPH),
+        Flag.mask(Flag.ETCH),
+        Tag.DIVISIBILITY,
+        4,
+        Tag.DIVISIBILITY,
+        5,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
+    ]);
+    expect(runestone.etching.unwrap()).toMatchObject({
+      divisibility: 4,
+    });
+  });
+
+  test('runestone_with_unrecognized_even_tag_is_cenotaph', () => {
+    const runestone = decipher(
+      [Tag.CENOTAPH, 0, Tag.BODY, 1, 1, 2, 0].map(u128)
+    );
+
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0 },
+    ]);
+    expect(runestone.cenotaph).toBe(true);
+  });
+
+  test('runestone_with_unrecognized_flag_is_cenotaph', () => {
+    const runestone = decipher(
+      [Tag.FLAGS, Flag.mask(Flag.CENOTAPH), Tag.BODY, 1, 1, 2, 0].map(u128)
+    );
+
+    expect(runestone.edicts).toEqual([
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
     expect(runestone.cenotaph).toBe(true);
   });
 
   test('runestone_with_edict_id_with_zero_block_and_nonzero_tx_is_cenotaph', () => {
-    const runestone = decipher(
-      [Tag.BODY, new RuneId(0, 1).toU128(), 2, 0].map(u128)
-    );
+    const runestone = decipher([Tag.BODY, 0, 1, 2, 0].map(u128));
 
     expect(runestone.edicts).toEqual([]);
     expect(runestone.cenotaph).toBe(true);
   });
 
   test('runestone_with_output_over_max_is_cenotaph', () => {
-    const runestone = decipher(
-      [Tag.BODY, createRuneId(1).toU128(), 2, 2].map(u128)
-    );
+    const runestone = decipher([Tag.BODY, 1, 1, 2, 2].map(u128));
 
     expect(runestone.edicts).toEqual([]);
     expect(runestone.cenotaph).toBe(true);
@@ -396,32 +399,22 @@ describe('runestone', () => {
     expect(runestone.etching.isSome()).toBe(true);
   });
 
-  test('additional_integers_in_body_are_ignored', () => {
-    const runestone = decipher(
-      [
-        Tag.FLAGS,
-        Flag.mask(Flag.ETCH),
-        Tag.RUNE,
-        4,
-        Tag.BODY,
-        createRuneId(1).toU128(),
-        2,
-        0,
-        4,
-        5,
-      ].map(u128)
-    );
+  test('trailing_integers_in_body_is_cenotaph', () => {
+    const integers = [Tag.BODY, 1, 1, 2, 0];
 
-    expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
-    ]);
+    for (const i of _.range(4)) {
+      const runestone = decipher(integers.map(u128));
+      if (i === 0) {
+        expect(runestone.edicts).toEqual([
+          { id: createRuneId(1), amount: 2n, output: 0 },
+        ]);
+        expect(runestone.cenotaph).toBe(false);
+      } else {
+        expect(runestone.cenotaph).toBe(true);
+      }
 
-    const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
-    expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
-    expect(etching.symbol.isNone()).toBe(true);
-    expect(etching.mint.isNone()).toBe(true);
+      integers.push(0);
+    }
   });
 
   test('decipher_etching_with_divisibility', () => {
@@ -434,14 +427,15 @@ describe('runestone', () => {
         Tag.DIVISIBILITY,
         5,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -462,14 +456,15 @@ describe('runestone', () => {
         Tag.DIVISIBILITY,
         MAX_DIVISIBILITY + 1,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -490,14 +485,15 @@ describe('runestone', () => {
         Tag.SYMBOL,
         0x110000,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -518,14 +514,15 @@ describe('runestone', () => {
         Tag.SYMBOL,
         97,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -556,14 +553,15 @@ describe('runestone', () => {
         Tag.LIMIT,
         3,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -592,7 +590,8 @@ describe('runestone', () => {
         Tag.LIMIT,
         3,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
         4,
@@ -601,7 +600,7 @@ describe('runestone', () => {
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
     expect(runestone.etching.isNone()).toBe(true);
   });
@@ -618,14 +617,15 @@ describe('runestone', () => {
         Tag.SYMBOL,
         97,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -643,38 +643,44 @@ describe('runestone', () => {
         Tag.DIVISIBILITY,
         Tag.BODY,
         Tag.BODY,
-        createRuneId(1).toU128(),
+        1,
+        1,
         2,
         0,
       ].map(u128)
     );
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
     expect(runestone.etching.isSome()).toBe(true);
   });
 
   test('runestone_may_contain_multiple_edicts', () => {
-    const runestone = decipher(
-      [Tag.BODY, createRuneId(1).toU128(), 2, 0, 3, 5, 0].map(u128)
-    );
+    const runestone = decipher([Tag.BODY, 1, 1, 2, 0, 0, 3, 5, 0].map(u128));
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
-      { id: createRuneId(4), amount: 5n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
+      { id: createRuneId(4), amount: 5n, output: 0 },
     ]);
   });
 
-  test('runestones_with_invalid_rune_ids_is_cenotaph', () => {
-    const runestone = decipher(
-      [Tag.BODY, createRuneId(1).toU128(), 2, 0, u128.MAX, 5, 6].map(u128)
-    );
+  test('runestones_with_invalid_rune_id_blocks_are_cenotaph', () => {
+    expect(
+      decipher([Tag.BODY, 1, 1, 2, 0, u128.MAX, 1, 0, 0].map(u128))
+    ).toMatchObject({
+      edicts: [{ id: createRuneId(1), amount: 2n, output: 0 }],
+      cenotaph: true,
+    });
+  });
 
-    expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
-    ]);
-    expect(runestone.cenotaph).toBe(true);
+  test('runestones_with_invalid_rune_id_txs_are_cenotaph', () => {
+    expect(
+      decipher([Tag.BODY, 1, 1, 2, 0, 1, u128.MAX, 0, 0].map(u128))
+    ).toMatchObject({
+      edicts: [{ id: createRuneId(1), amount: 2n, output: 0 }],
+      cenotaph: true,
+    });
   });
 
   test('payload_pushes_are_concatenated', () => {
@@ -687,14 +693,15 @@ describe('runestone', () => {
         u128.encodeVarInt(u128(Tag.DIVISIBILITY)),
         u128.encodeVarInt(u128(5)),
         u128.encodeVarInt(u128(Tag.BODY)),
-        u128.encodeVarInt(createRuneId(1).toU128()),
+        u128.encodeVarInt(u128(1)),
+        u128.encodeVarInt(u128(1)),
         u128.encodeVarInt(u128(2)),
         u128.encodeVarInt(u128(0)),
       ])
     ).unwrap();
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
 
     const etching = runestone.etching.unwrap();
@@ -705,7 +712,7 @@ describe('runestone', () => {
   });
 
   test('runestone_may_be_in_second_output', () => {
-    const payload = getPayload([0, createRuneId(1).toU128(), 2, 0].map(u128));
+    const payload = getPayload([0, 1, 1, 2, 0].map(u128));
 
     const transaction = new bitcoin.Transaction();
 
@@ -722,12 +729,12 @@ describe('runestone', () => {
     const runestone = Runestone.decipher(transaction).unwrap();
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
   });
 
   test('runestone_may_be_after_non_matching_op_return', () => {
-    const payload = getPayload([0, createRuneId(1).toU128(), 2, 0].map(u128));
+    const payload = getPayload([0, 1, 1, 2, 0].map(u128));
 
     const transaction = new bitcoin.Transaction();
 
@@ -747,7 +754,7 @@ describe('runestone', () => {
     const runestone = Runestone.decipher(transaction).unwrap();
 
     expect(runestone.edicts).toEqual([
-      { id: createRuneId(1), amount: 2n, output: 0n },
+      { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
   });
 
@@ -803,13 +810,13 @@ describe('runestone', () => {
         {
           amount: u128(0),
           id: new RuneId(0, 0),
-          output: u128(0),
+          output: 0,
         },
       ],
       Some(
         new Etching(MAX_DIVISIBILITY, Some(new Rune(u128.MAX)), 0, None, None)
       ),
-      31
+      32
     );
 
     testcase(
@@ -817,134 +824,132 @@ describe('runestone', () => {
         {
           amount: u128.MAX,
           id: new RuneId(0, 0),
-          output: u128(0),
+          output: 0,
         },
       ],
       Some(
         new Etching(MAX_DIVISIBILITY, Some(new Rune(u128.MAX)), 0, None, None)
       ),
-      49
+      50
     );
 
     testcase(
       [
         {
           amount: u128(0),
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
+          id: new RuneId(1_000_000, U32_MAX),
+          output: 0,
         },
       ],
       None,
-      12
+      14
     );
 
     testcase(
       [
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
+          id: new RuneId(1_000_000, U32_MAX),
+          output: 0,
         },
       ],
       None,
-      30
+      32
     );
 
     testcase(
       [
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
+          id: new RuneId(1_000_000, U32_MAX),
+          output: 0,
         },
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
+          id: new RuneId(1_000_000, U32_MAX),
+          output: 0,
         },
       ],
       None,
-      51
+      54
     );
 
     testcase(
       [
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
+          id: new RuneId(1_000_000, U32_MAX),
+          output: 0,
         },
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
+          id: new RuneId(1_000_000, U32_MAX),
+          output: 0,
         },
         {
           amount: u128.MAX,
-          id: new RuneId(1_000_000, 0xffff),
-          output: u128(0),
+          id: new RuneId(1_000_000, U32_MAX),
+          output: 0,
         },
       ],
       None,
-      72
+      76
     );
 
     testcase(
       _.range(4).map(() => ({
         amount: u128(0xffff_ffff_ffff_ffffn),
-        id: new RuneId(1_000_000, 0xffff),
-        output: u128(0),
+        id: new RuneId(1_000_000, U32_MAX),
+        output: 0,
       })),
       None,
-      57
+      62
     );
 
     testcase(
       _.range(5).map(() => ({
         amount: u128(0xffff_ffff_ffff_ffffn),
-        id: new RuneId(1_000_000, 0xffff),
-        output: u128(0),
+        id: new RuneId(1_000_000, U32_MAX),
+        output: 0,
       })),
       None,
-      69
+      75
     );
 
     testcase(
       _.range(5).map(() => ({
         amount: u128(0xffff_ffff_ffff_ffffn),
-        id: new RuneId(0, 0xffff),
-        output: u128(0),
+        id: new RuneId(0, U32_MAX),
+        output: 0,
       })),
       None,
-      66
+      73
     );
 
     testcase(
       _.range(5).map(() => ({
         amount: u128(1_000_000_000_000_000_000n),
-        id: new RuneId(1_000_000, 0xffff),
-        output: u128(0),
+        id: new RuneId(1_000_000, U32_MAX),
+        output: 0,
       })),
       None,
-      64
+      70
     );
   });
 
-  // TODO: update unit test in ord
-  test('etching_with_term_greater_than_maximum_is_ignored', () => {
+  test('etching_with_term_greater_than_maximum_is_still_an_etching', () => {
     {
       const runestone = decipher(
         [
           Tag.FLAGS,
-          Flag.mask(Flag.ETCH) | Flag.mask(Flag.MINT),
+          Flag.mask(Flag.ETCH),
           Tag.TERM,
-          0xffff_ffffn,
+          0xffff_ffff_ffff_ffffn + 1n,
         ].map(u128)
       );
 
-      const etching = runestone.etching.unwrap();
-      const mint = etching.mint.unwrap();
-      expect(mint.term.unwrap()).toBe(0xffff_ffff);
+      expect(runestone.cenotaph).toBe(true);
+      expect(runestone.etching.isSome()).toBe(true);
     }
 
     {
@@ -971,8 +976,11 @@ describe('runestone', () => {
       transaction.addOutput(scriptPubKey, 0);
 
       const payload = Runestone.payload(transaction).unwrap();
+      expect(isValidPayload(payload)).toBe(true);
 
-      expect(Runestone.integers(payload)).toEqual(expected.map(u128));
+      expect(Runestone.integers(payload as Buffer).unwrap()).toEqual(
+        expected.map(u128)
+      );
 
       const txnRunestone = Runestone.fromTransaction(transaction).unwrap();
 
@@ -1037,18 +1045,18 @@ describe('runestone', () => {
     testcase(
       new Runestone(
         true,
-        Some(RuneId.fromU128(u128(12))),
-        Some(11),
+        Some(createRuneId(12)),
+        Some(0),
         [
           {
             amount: u128(8),
             id: createRuneId(9),
-            output: u128(0),
+            output: 0,
           },
           {
             amount: u128(5),
             id: createRuneId(6),
-            output: u128(1),
+            output: 1,
           },
         ],
         Some(
@@ -1083,15 +1091,19 @@ describe('runestone', () => {
         Tag.TERM,
         5,
         Tag.CLAIM,
+        1,
+        Tag.CLAIM,
         12,
         Tag.DEFAULT_OUTPUT,
-        11,
+        0,
         Tag.CENOTAPH,
         0,
         Tag.BODY,
-        createRuneId(6).toU128(),
+        1,
+        6,
         5,
         1,
+        0,
         3,
         8,
         0,
@@ -1129,10 +1141,10 @@ describe('runestone', () => {
         false,
         None,
         None,
-        _.range(173).map((i) => ({
+        _.range(129).map((i) => ({
           id: new RuneId(0, 0),
           amount: u128(0),
-          output: u128(0),
+          output: 0,
         })),
         None
       ).encipher();
@@ -1146,10 +1158,10 @@ describe('runestone', () => {
         false,
         None,
         None,
-        _.range(174).map((i) => ({
+        _.range(130).map((i) => ({
           id: createRuneId(0),
           amount: u128(0),
-          output: u128(0),
+          output: 0,
         })),
         None
       ).encipher();
@@ -1172,5 +1184,62 @@ describe('runestone', () => {
     }
 
     expect(SpacedRune.fromString(rune).spacers).toBe(MAX_SPACERS);
+  });
+
+  test('edict_output_greater_than_32_max_produces_cenotaph', () => {
+    expect(decipher([Tag.BODY, 1, 1, 1, U32_MAX + 1].map(u128)).cenotaph).toBe(
+      true
+    );
+  });
+
+  test('partial_claim_produces_cenotaph', () => {
+    expect(decipher([Tag.CLAIM, 1].map(u128)).cenotaph).toBe(true);
+  });
+
+  test('invalid_claim_produces_cenotaph', () => {
+    expect(decipher([Tag.CLAIM, 0, Tag.CLAIM, 1].map(u128)).cenotaph).toBe(
+      true
+    );
+  });
+
+  test('invalid_deadline_produces_cenotaph', () => {
+    expect(decipher([Tag.DEADLINE, u128.MAX].map(u128)).cenotaph).toBe(true);
+  });
+
+  test('invalid_deadline_produces_cenotaph', () => {
+    expect(decipher([Tag.DEFAULT_OUTPUT, 1].map(u128)).cenotaph).toBe(true);
+    expect(decipher([Tag.DEFAULT_OUTPUT, u128.MAX].map(u128)).cenotaph).toBe(
+      true
+    );
+  });
+
+  test('invalid_divisibility_does_not_produce_cenotaph', () => {
+    expect(decipher([Tag.DIVISIBILITY, u128.MAX].map(u128)).cenotaph).toBe(
+      false
+    );
+  });
+
+  test('invalid_limit_produces_cenotaph', () => {
+    expect(decipher([Tag.LIMIT, u128.MAX].map(u128)).cenotaph).toBe(true);
+    expect(
+      decipher([Tag.LIMIT, 0xffffffff_ffffffffn + 1n].map(u128)).cenotaph
+    ).toBe(true);
+  });
+
+  test('min_and_max_runes_are_not_cenotaphs', () => {
+    expect(decipher([Tag.RUNE, 0].map(u128)).cenotaph).toBe(false);
+    expect(decipher([Tag.RUNE, u128.MAX].map(u128)).cenotaph).toBe(false);
+  });
+
+  test('invalid_spacers_does_not_produce_cenotaph', () => {
+    expect(decipher([Tag.SPACERS, u128.MAX].map(u128)).cenotaph).toBe(false);
+  });
+
+  test('invalid_symbol_does_not_produce_cenotaph', () => {
+    expect(decipher([Tag.SYMBOL, u128.MAX].map(u128)).cenotaph).toBe(false);
+  });
+
+  test('invalid_term_produces_cenotaph', () => {
+    expect(decipher([Tag.TERM, u128.MAX].map(u128)).cenotaph).toBe(true);
   });
 });

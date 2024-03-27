@@ -81,7 +81,7 @@ export class Rune {
   }
 
   static getReserved(n: u128): Rune {
-    return new Rune(u128.checkedAdd(RESERVED, n));
+    return new Rune(u128.checkedAdd(RESERVED, n).unwrap());
   }
 
   toString() {
@@ -109,9 +109,11 @@ export class Rune {
       if (i > 0) {
         x = u128(x + 1n);
       }
-      x = u128.checkedMultiply(x, u128(26));
+      x = u128.checkedMultiply(x, u128(26)).unwrap();
       if ('A' <= c && c <= 'Z') {
-        x = u128.checkedAdd(x, u128(c.charCodeAt(0) - 'A'.charCodeAt(0)));
+        x = u128
+          .checkedAdd(x, u128(c.charCodeAt(0) - 'A'.charCodeAt(0)))
+          .unwrap();
       } else {
         throw new Error(`invalid character in rune name: ${c}`);
       }

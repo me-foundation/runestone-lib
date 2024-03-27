@@ -1,5 +1,7 @@
 import { None, Option, Some } from '@sniptt/monads';
+import _ from 'lodash';
 import { u128 } from './u128';
+import { FixedArray } from './utils';
 
 export enum Tag {
   BODY = 0,
@@ -19,17 +21,47 @@ export enum Tag {
 }
 
 export namespace Tag {
-  export function take(fields: Map<u128, u128>, tag: Tag): Option<u128> {
-    const key = u128(tag);
-    const value = fields.get(key);
-    fields.delete(key);
-    return value ? Some(value) : None;
+  export function take<N extends number, T>(
+    tag: Tag,
+    fields: Map<u128, u128[]>,
+    n: N,
+    withFn: (values: FixedArray<u128, N>) => Option<T>
+  ): Option<T> {
+    const field = fields.get(u128(tag));
+    if (field === undefined) {
+      return None;
+    }
+
+    const values: u128[] = [];
+    for (const i of _.range(n)) {
+      if (field[i] === undefined) {
+        return None;
+      }
+      values[i] = field[i];
+    }
+
+    const optionValue = withFn(values as FixedArray<u128, N>);
+    if (optionValue.isNone()) {
+      return None;
+    }
+
+    field.splice(0, n);
+
+    if (field.length === 0) {
+      fields.delete(u128(tag));
+    }
+
+    return Some(optionValue.unwrap());
   }
 
-  export function encode(tag: Tag, value: u128): Buffer {
-    return Buffer.concat([
-      u128.encodeVarInt(u128(tag)),
-      u128.encodeVarInt(value),
-    ]);
+  export function encode(tag: Tag, values: u128[]): Buffer {
+    return Buffer.concat(
+      _.flatten(
+        values.map((value) => [
+          u128.encodeVarInt(u128(tag)),
+          u128.encodeVarInt(value),
+        ])
+      )
+    );
   }
 }
