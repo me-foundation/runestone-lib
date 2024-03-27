@@ -15,12 +15,14 @@ describe('u128 functions', () => {
   });
 
   test('u128 checked operations errors on overflow', () => {
-    expect(u128.checkedAdd(u128(45n), u128(25n))).toBe(70n);
-    expect(u128.checkedMultiply(u128(45n), u128(25n))).toBe(1125n);
+    expect(u128.checkedAdd(u128(45n), u128(25n)).unwrap()).toBe(70n);
+    expect(u128.checkedMultiply(u128(45n), u128(25n)).unwrap()).toBe(1125n);
 
-    expect(() => u128.checkedAdd(u128(2n ** 127n), u128(2n ** 127n))).toThrow();
     expect(() =>
-      u128.checkedMultiply(u128(2n ** 127n), u128(2n ** 127n))
+      u128.checkedAdd(u128(2n ** 127n), u128(2n ** 127n)).unwrap()
+    ).toThrow();
+    expect(() =>
+      u128.checkedMultiply(u128(2n ** 127n), u128(2n ** 127n)).unwrap()
     ).toThrow();
   });
 
@@ -40,12 +42,23 @@ describe('u128 functions', () => {
 });
 
 describe('u128 varint encoding', () => {
+  test('zero round trips successfully', () => {
+    const n = u128(0);
+    const encoded = u128.encodeVarInt(n);
+
+    const seekBuffer = new SeekBuffer(encoded);
+    const decoded = u128.tryDecodeVarInt(seekBuffer);
+
+    expect(decoded).toBe(n);
+    expect(seekBuffer.isFinished()).toBe(true);
+  });
+
   test('encode/decode varints roundtrips correctly', () => {
     const n = u128.MAX;
     const encoded = u128.encodeVarInt(n);
 
     const seekBuffer = new SeekBuffer(encoded);
-    const decoded = u128.readVarInt(seekBuffer);
+    const decoded = u128.tryDecodeVarInt(seekBuffer);
 
     expect(decoded).toBe(n);
     expect(seekBuffer.isFinished()).toBe(true);
@@ -58,7 +71,7 @@ describe('u128 varint encoding', () => {
       const encoded = u128.encodeVarInt(n);
 
       const seekBuffer = new SeekBuffer(encoded);
-      const decoded = u128.readVarInt(seekBuffer);
+      const decoded = u128.tryDecodeVarInt(seekBuffer);
 
       expect(decoded).toBe(n);
       expect(seekBuffer.isFinished()).toBe(true);
@@ -75,76 +88,97 @@ describe('u128 varint encoding', () => {
       const encoded = u128.encodeVarInt(n);
 
       const seekBuffer = new SeekBuffer(encoded);
-      const decoded = u128.readVarInt(seekBuffer);
+      const decoded = u128.tryDecodeVarInt(seekBuffer);
 
       expect(decoded).toBe(n);
       expect(seekBuffer.isFinished()).toBe(true);
     }
   });
 
-  test('large varints saturate to maximum', () => {
-    const seekBuffer = new SeekBuffer(
+  test('varints may not be longer than 19 bytes', () => {
+    const VALID = new SeekBuffer(
       Buffer.from([
-        130, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-        254, 254, 254, 255, 0,
+        128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+        128, 128, 128, 128, 0,
       ])
     );
-    const decoded = u128.readVarInt(seekBuffer);
-    expect(decoded).toBe(u128.MAX);
-  });
-
-  test('truncated large varints with large final byte saturate to maximum', () => {
-    const seekBuffer = new SeekBuffer(
+    const INVALID = new SeekBuffer(
       Buffer.from([
-        130, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-        254, 254, 254, 255, 255,
+        128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+        128, 128, 128, 128, 128, 0,
       ])
     );
-    const decoded = u128.readVarInt(seekBuffer);
-    expect(decoded).toBe(u128.MAX);
+
+    expect(u128.tryDecodeVarInt(VALID)).toBe(u128(0));
+    expect(() => u128.tryDecodeVarInt(INVALID)).toThrow('Overlong');
   });
 
-  test('varints with large final byte saturate to maximum', () => {
-    const seekBuffer = new SeekBuffer(
-      Buffer.from([
-        130, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-        254, 254, 254, 255, 127,
-      ])
-    );
-    const decoded = u128.readVarInt(seekBuffer);
-    expect(decoded).toBe(u128.MAX);
+  test('varints may not overflow u128', () => {
+    expect(() =>
+      u128.tryDecodeVarInt(
+        new SeekBuffer(
+          Buffer.from([
+            128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+            128, 128, 128, 128, 128, 64,
+          ])
+        )
+      )
+    ).toThrow('Overflow');
+    expect(() =>
+      u128.tryDecodeVarInt(
+        new SeekBuffer(
+          Buffer.from([
+            128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+            128, 128, 128, 128, 128, 32,
+          ])
+        )
+      )
+    ).toThrow('Overflow');
+    expect(() =>
+      u128.tryDecodeVarInt(
+        new SeekBuffer(
+          Buffer.from([
+            128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+            128, 128, 128, 128, 128, 16,
+          ])
+        )
+      )
+    ).toThrow('Overflow');
+    expect(() =>
+      u128.tryDecodeVarInt(
+        new SeekBuffer(
+          Buffer.from([
+            128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+            128, 128, 128, 128, 128, 8,
+          ])
+        )
+      )
+    ).toThrow('Overflow');
+    expect(() =>
+      u128.tryDecodeVarInt(
+        new SeekBuffer(
+          Buffer.from([
+            128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+            128, 128, 128, 128, 128, 4,
+          ])
+        )
+      )
+    ).toThrow('Overflow');
+    expect(
+      u128.tryDecodeVarInt(
+        new SeekBuffer(
+          Buffer.from([
+            128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+            128, 128, 128, 128, 128, 2,
+          ])
+        )
+      )
+    ).toBe(u128(2n ** 127n));
   });
 
-  it.each([
-    [0n, [0x00]],
-    [1n, [0x01]],
-    [127n, [0x7f]],
-    [128n, [0x80, 0x00]],
-    [255n, [0x80, 0x7f]],
-    [256n, [0x81, 0x00]],
-    [16383n, [0xfe, 0x7f]],
-    [16384n, [0xff, 0x00]],
-    [16511n, [0xff, 0x7f]],
-    [65535n, [0x82, 0xfe, 0x7f]],
-    [1n << 32n, [0x8e, 0xfe, 0xfe, 0xff, 0x00]],
-  ])(
-    'taproot annex format bip test vectors round trip successfully',
-    (n, encoding) => {
-      const actualEncoding = u128.encodeVarInt(u128(n));
-      expect([...actualEncoding]).toEqual(encoding);
-
-      const seekBuffer = new SeekBuffer(Buffer.from(encoding));
-      const actualu128 = u128.readVarInt(seekBuffer);
-
-      expect(actualu128).toBe(n);
-      expect(seekBuffer.isFinished()).toBe(true);
-    }
-  );
-
-  test('varints may be truncated', () => {
-    const seekBuffer = new SeekBuffer(Buffer.from([128]));
-    const decoded = u128.readVarInt(seekBuffer);
-
-    expect(decoded).toBe(1n);
+  test('varints must be terminated', () => {
+    expect(() =>
+      u128.tryDecodeVarInt(new SeekBuffer(Buffer.from([128])))
+    ).toThrow('Unterminated');
   });
 });

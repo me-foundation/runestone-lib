@@ -1,3 +1,4 @@
+import { None, Option, Some } from '@sniptt/monads';
 import { SeekBuffer } from './seekbuffer';
 
 /**
@@ -29,6 +30,8 @@ export type u128 = BigTypedNumber<'u128'>;
 
 export const U128_MAX_BIGINT = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn;
 
+export const U32_MAX = 0xffffffff;
+
 /**
  * Convert Number or BigInt to 128-bit unsigned integer.
  * @param num - The Number or BigInt to convert.
@@ -40,26 +43,24 @@ export function u128(num: number | bigint): u128 {
 }
 
 export namespace u128 {
-  export class OverflowError extends Error {}
-
   export const MAX = u128(U128_MAX_BIGINT);
 
-  export function checkedAdd(x: u128, y: u128): u128 {
+  export function checkedAdd(x: u128, y: u128): Option<u128> {
     const result = x + y;
     if (result > u128.MAX) {
-      throw new OverflowError();
+      return None;
     }
 
-    return u128(result);
+    return Some(u128(result));
   }
 
-  export function checkedMultiply(x: u128, y: u128): u128 {
+  export function checkedMultiply(x: u128, y: u128): Option<u128> {
     const result = x * y;
     if (result > u128.MAX) {
-      throw new OverflowError();
+      return None;
     }
 
-    return u128(result);
+    return Some(u128(result));
   }
 
   export function saturatingAdd(x: u128, y: u128): u128 {
@@ -76,43 +77,54 @@ export namespace u128 {
     return u128(x < y ? 0 : x - y);
   }
 
-  export function readVarInt(seekBuffer: SeekBuffer): u128 {
+  export function decodeVarInt(seekBuffer: SeekBuffer): Option<u128> {
+    try {
+      return Some(tryDecodeVarInt(seekBuffer));
+    } catch (e) {
+      return None;
+    }
+  }
+
+  export function tryDecodeVarInt(seekBuffer: SeekBuffer): u128 {
     let result = u128(0);
-    do {
+    for (let i = 0; i <= 18; i++) {
       const byte = seekBuffer.readUInt8();
       if (byte === undefined) {
+        throw new Error('Unterminated');
+      }
+
+      const value = u128(byte) & 0b0111_1111n;
+
+      if (i === 18 && (value & 0b0111_1100n) !== 0n) {
+        throw new Error('Overflow');
+      }
+
+      result = u128(result | (value << u128(7 * i)));
+
+      if ((byte & 0b1000_0000) === 0) {
         return result;
       }
+    }
 
-      result = u128.saturatingMultiply(result, u128(128));
-
-      if (byte < 128) {
-        return u128.saturatingAdd(result, u128(byte));
-      }
-
-      result = u128.saturatingAdd(result, u128(byte - 127));
-    } while (true);
+    throw new Error('Overlong');
   }
 
   export function encodeVarInt(value: u128): Buffer {
-    const buffer = Buffer.alloc(19);
-    let bufindex = 18;
-
-    buffer.writeUInt8(Number(value & 0xffn) & 0b0111_1111, bufindex);
-    while (value > 0b0111_1111) {
-      value = u128(value / 128n - 1n);
-      bufindex--;
-      buffer.writeUInt8(Number(value & 0xffn) | 0b1000_0000, bufindex);
+    const v: number[] = [];
+    while (value >> 7n > 0n) {
+      v.push(Number(value & 0xffn) | 0b1000_0000);
+      value = u128(value >> 7n);
     }
+    v.push(Number(value & 0xffn));
 
-    return buffer.subarray(bufindex);
+    return Buffer.from(v);
   }
 }
 
 export function* getAllU128(buffer: Buffer): Generator<u128> {
   const seekBuffer = new SeekBuffer(buffer);
   while (!seekBuffer.isFinished()) {
-    const nextValue = u128.readVarInt(seekBuffer);
+    const nextValue = u128.tryDecodeVarInt(seekBuffer);
     if (nextValue === undefined) {
       return;
     }

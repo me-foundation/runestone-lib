@@ -2,12 +2,54 @@ import { RuneId } from '../src/runeid';
 import { u128 } from '../src/u128';
 
 describe('runeid', () => {
-  test('rune id to 128', () => {
-    expect(new RuneId(3, 1).toU128()).toBe(0b11_0000_0000_0000_0001n);
+  test('delta', () => {
+    let expected = [
+      new RuneId(4, 2),
+      new RuneId(1, 2),
+      new RuneId(1, 1),
+      new RuneId(3, 1),
+      new RuneId(2, 0),
+    ];
+
+    expected = RuneId.sort(expected);
+
+    expect(expected).toEqual([
+      new RuneId(1, 1),
+      new RuneId(1, 2),
+      new RuneId(2, 0),
+      new RuneId(3, 1),
+      new RuneId(4, 2),
+    ]);
+
+    let previous = new RuneId(0, 0);
+    const deltas: [u128, u128][] = [];
+    for (const id of expected) {
+      const delta = previous.delta(id).unwrap();
+      deltas.push(delta);
+      previous = id;
+    }
+
+    expect(deltas).toEqual([
+      [1n, 1n],
+      [0n, 1n],
+      [1n, 0n],
+      [1n, 1n],
+      [1n, 2n],
+    ]);
+
+    previous = new RuneId(0, 0);
+    const actual: RuneId[] = [];
+    for (const [block, tx] of deltas) {
+      const next = previous.next(block, tx).unwrap();
+      actual.push(next);
+      previous = next;
+    }
+
+    expect(actual).toEqual(expected);
   });
 
   test('display', () => {
-    expect(new RuneId(1, 2).toString()).toBe('1:2');
+    expect(RuneId.new(1, 2).unwrap().toString()).toBe('1:2');
   });
 
   test('from string', () => {
@@ -17,11 +59,5 @@ describe('runeid', () => {
     expect(() => RuneId.fromString('a:2')).toThrow();
     expect(() => RuneId.fromString('1:a')).toThrow();
     expect(RuneId.fromString('1:2')).toEqual(new RuneId(1, 2));
-  });
-
-  test('from u128', () => {
-    expect(RuneId.fromU128(u128(0x060504030201n))).toEqual(
-      new RuneId(0x06050403, 0x0201)
-    );
   });
 });
