@@ -30,7 +30,7 @@ export type u128 = BigTypedNumber<'u128'>;
 
 export const U128_MAX_BIGINT = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn;
 
-export const U32_MAX = 0xffffffff;
+export const U32_MAX = 0xffff_ffff;
 
 /**
  * Convert Number or BigInt to 128-bit unsigned integer.

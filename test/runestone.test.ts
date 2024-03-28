@@ -189,9 +189,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.isNone()).toBe(true);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
     expect(etching.mint.isNone()).toBe(true);
   });
@@ -208,9 +208,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
     expect(etching.mint.isNone()).toBe(true);
   });
@@ -248,9 +248,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.isNone()).toBe(true);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
 
     const mint = etching.mint.unwrap();
@@ -279,9 +279,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.isNone()).toBe(true);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
 
     const mint = etching.mint.unwrap();
@@ -325,9 +325,9 @@ describe('runestone', () => {
     expect(runestone.cenotaph).toBe(true);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
     expect(etching.mint.isNone()).toBe(true);
   });
@@ -352,9 +352,7 @@ describe('runestone', () => {
     expect(runestone.edicts).toEqual([
       { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
-    expect(runestone.etching.unwrap()).toMatchObject({
-      divisibility: 4,
-    });
+    expect(runestone.etching.unwrap().divisibility.unwrap()).toBe(4);
   });
 
   test('runestone_with_unrecognized_even_tag_is_cenotaph', () => {
@@ -439,9 +437,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(5);
+    expect(etching.divisibility.unwrap()).toBe(5);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
     expect(etching.mint.isNone()).toBe(true);
   });
@@ -468,9 +466,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
     expect(etching.mint.isNone()).toBe(true);
   });
@@ -497,9 +495,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
     expect(etching.mint.isNone()).toBe(true);
   });
@@ -526,9 +524,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(0);
+    expect(etching.divisibility.isNone()).toBe(true);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.unwrap()).toBe('a');
     expect(etching.mint.isNone()).toBe(true);
   });
@@ -552,6 +550,16 @@ describe('runestone', () => {
         2,
         Tag.LIMIT,
         3,
+        Tag.PREMINE,
+        8,
+        Tag.CAP,
+        9,
+        Tag.DEFAULT_OUTPUT,
+        0,
+        Tag.CLAIM,
+        1,
+        Tag.CLAIM,
+        1,
         Tag.BODY,
         1,
         1,
@@ -563,17 +571,22 @@ describe('runestone', () => {
     expect(runestone.edicts).toEqual([
       { id: createRuneId(1), amount: 2n, output: 0 },
     ]);
+    expect(runestone.cenotaph).toBe(false);
+    expect(runestone.defaultOutput.unwrap()).toBe(0);
+    expect(runestone.claim.unwrap()).toEqual(RuneId.new(1, 1).unwrap());
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(1);
+    expect(etching.divisibility.unwrap()).toBe(1);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(5);
+    expect(etching.spacers.unwrap()).toBe(5);
     expect(etching.symbol.unwrap()).toBe('a');
+    expect(etching.premine.unwrap()).toBe(8n);
 
     const mint = etching.mint.unwrap();
     expect(mint.deadline.unwrap()).toBe(7);
     expect(mint.limit.unwrap()).toBe(3n);
     expect(mint.term.unwrap()).toBe(2);
+    expect(mint.cap.unwrap()).toBe(9n);
   });
 
   test('recognized_even_etching_fields_in_non_etching_are_ignored', () => {
@@ -629,9 +642,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(1);
+    expect(etching.divisibility.unwrap()).toBe(1);
     expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.unwrap()).toBe('a');
   });
 
@@ -705,9 +718,9 @@ describe('runestone', () => {
     ]);
 
     const etching = runestone.etching.unwrap();
-    expect(etching.divisibility).toBe(5);
+    expect(etching.divisibility.unwrap()).toBe(5);
     expect(etching.rune.isNone()).toBe(true);
-    expect(etching.spacers).toBe(0);
+    expect(etching.spacers.isNone()).toBe(true);
     expect(etching.symbol.isNone()).toBe(true);
   });
 
@@ -769,14 +782,21 @@ describe('runestone', () => {
 
     testcase(
       [],
-      Some(new Etching(0, Some(new Rune(u128(0))), 0, None, None)),
+      Some(new Etching(None, Some(new Rune(u128(0))), None, None, None, None)),
       7
     );
 
     testcase(
       [],
       Some(
-        new Etching(MAX_DIVISIBILITY, Some(new Rune(u128(0))), 0, None, None)
+        new Etching(
+          Some(MAX_DIVISIBILITY),
+          Some(new Rune(u128(0))),
+          None,
+          None,
+          None,
+          None
+        )
       ),
       9
     );
@@ -785,15 +805,17 @@ describe('runestone', () => {
       [],
       Some(
         new Etching(
-          MAX_DIVISIBILITY,
+          Some(MAX_DIVISIBILITY),
           Some(new Rune(u128(0))),
-          1,
+          Some(1),
           Some('$'),
           Some({
             deadline: Some(10000),
             limit: Some(u128(1)),
             term: Some(1),
-          })
+            cap: None,
+          }),
+          None
         )
       ),
       20
@@ -801,7 +823,7 @@ describe('runestone', () => {
 
     testcase(
       [],
-      Some(new Etching(0, Some(new Rune(u128.MAX)), 0, None, None)),
+      Some(new Etching(None, Some(new Rune(u128.MAX)), None, None, None, None)),
       25
     );
 
@@ -814,7 +836,14 @@ describe('runestone', () => {
         },
       ],
       Some(
-        new Etching(MAX_DIVISIBILITY, Some(new Rune(u128.MAX)), 0, None, None)
+        new Etching(
+          Some(MAX_DIVISIBILITY),
+          Some(new Rune(u128.MAX)),
+          None,
+          None,
+          None,
+          None
+        )
       ),
       32
     );
@@ -828,7 +857,14 @@ describe('runestone', () => {
         },
       ],
       Some(
-        new Etching(MAX_DIVISIBILITY, Some(new Rune(u128.MAX)), 0, None, None)
+        new Etching(
+          Some(MAX_DIVISIBILITY),
+          Some(new Rune(u128.MAX)),
+          None,
+          None,
+          None,
+          None
+        )
       ),
       50
     );
@@ -1008,7 +1044,9 @@ describe('runestone', () => {
         const txnEtching = txnRunestone.etching.unwrap();
         const etching = runestone.etching.unwrap();
 
-        expect(txnEtching.divisibility).toBe(etching.divisibility);
+        expect(txnEtching.divisibility.unwrapOr(Infinity)).toBe(
+          etching.divisibility.unwrapOr(Infinity)
+        );
         expect(txnEtching.mint.isSome()).toBe(etching.mint.isSome());
         if (txnEtching.mint.isSome()) {
           const txnMint = txnEtching.mint.unwrap();
@@ -1028,12 +1066,19 @@ describe('runestone', () => {
           if (txnMint.term.isSome()) {
             expect(txnMint.term.unwrap()).toBe(mint.term.unwrap());
           }
+
+          expect(txnMint.cap.isSome()).toBe(mint.cap.isSome());
+          if (txnMint.cap.isSome()) {
+            expect(txnMint.cap.unwrap()).toBe(mint.cap.unwrap());
+          }
         }
 
         expect(
           txnEtching.rune.map((value) => value.toString()).unwrapOr('')
         ).toBe(etching.rune.map((value) => value.toString()).unwrapOr(''));
-        expect(txnEtching.spacers).toBe(etching.spacers);
+        expect(txnEtching.spacers.unwrapOr(Infinity)).toBe(
+          etching.spacers.unwrapOr(Infinity)
+        );
         expect(txnEtching.symbol.unwrapOr('')).toBe(
           etching.symbol.unwrapOr('')
         );
@@ -1061,15 +1106,17 @@ describe('runestone', () => {
         ],
         Some(
           new Etching(
-            1,
+            Some(1),
             Some(new Rune(u128(4))),
-            6,
+            Some(6),
             Some('@'),
             Some({
               deadline: Some(2),
               limit: Some(u128(3)),
               term: Some(5),
-            })
+              cap: None,
+            }),
+            None
           )
         )
       ),
@@ -1116,7 +1163,7 @@ describe('runestone', () => {
         None,
         None,
         [],
-        Some(new Etching(0, Some(new Rune(u128(3))), 0, None, None))
+        Some(new Etching(None, Some(new Rune(u128(3))), None, None, None, None))
       ),
       [Tag.FLAGS, Flag.mask(Flag.ETCH), Tag.RUNE, 3]
     );
@@ -1127,7 +1174,7 @@ describe('runestone', () => {
         None,
         None,
         [],
-        Some(new Etching(0, None, 0, None, None))
+        Some(new Etching(None, None, None, None, None, None))
       ),
       [Tag.FLAGS, Flag.mask(Flag.ETCH)]
     );
@@ -1219,13 +1266,6 @@ describe('runestone', () => {
     );
   });
 
-  test('invalid_limit_produces_cenotaph', () => {
-    expect(decipher([Tag.LIMIT, u128.MAX].map(u128)).cenotaph).toBe(true);
-    expect(
-      decipher([Tag.LIMIT, 0xffffffff_ffffffffn + 1n].map(u128)).cenotaph
-    ).toBe(true);
-  });
-
   test('min_and_max_runes_are_not_cenotaphs', () => {
     expect(decipher([Tag.RUNE, 0].map(u128)).cenotaph).toBe(false);
     expect(decipher([Tag.RUNE, u128.MAX].map(u128)).cenotaph).toBe(false);
@@ -1241,5 +1281,61 @@ describe('runestone', () => {
 
   test('invalid_term_produces_cenotaph', () => {
     expect(decipher([Tag.TERM, u128.MAX].map(u128)).cenotaph).toBe(true);
+  });
+
+  test('invalid_supply_produces_cenotaph', () => {
+    expect(
+      decipher(
+        [
+          Tag.FLAGS,
+          Flag.mask(Flag.ETCH | Flag.MINT),
+          Tag.CAP,
+          1,
+          Tag.LIMIT,
+          u128.MAX,
+        ].map(u128)
+      ).cenotaph
+    ).toBe(false);
+
+    expect(
+      decipher(
+        [
+          Tag.FLAGS,
+          Flag.mask(Flag.ETCH | Flag.MINT),
+          Tag.CAP,
+          2,
+          Tag.LIMIT,
+          u128.MAX,
+        ].map(u128)
+      ).cenotaph
+    ).toBe(true);
+
+    expect(
+      decipher(
+        [
+          Tag.FLAGS,
+          Flag.mask(Flag.ETCH | Flag.MINT),
+          Tag.CAP,
+          2,
+          Tag.LIMIT,
+          u128.MAX / 2n + 1n,
+        ].map(u128)
+      ).cenotaph
+    ).toBe(true);
+
+    expect(
+      decipher(
+        [
+          Tag.FLAGS,
+          Flag.mask(Flag.ETCH | Flag.MINT),
+          Tag.PREMINE,
+          1,
+          Tag.CAP,
+          1,
+          Tag.LIMIT,
+          u128.MAX,
+        ].map(u128)
+      ).cenotaph
+    ).toBe(true);
   });
 });
