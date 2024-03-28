@@ -83,7 +83,7 @@ export class Rune {
   get commitment(): Buffer {
     const bytes = Buffer.alloc(16);
     bytes.writeBigUInt64LE(0xffffffff_ffffffffn & this.value, 0);
-    bytes.writeBigUInt64LE(this.value >> 8n, 8);
+    bytes.writeBigUInt64LE(this.value >> 64n, 8);
 
     let end = bytes.length;
     while (end > 0 && bytes.at(end - 1) === 0) {
