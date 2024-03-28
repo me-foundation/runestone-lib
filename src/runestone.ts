@@ -49,6 +49,10 @@ export class Runestone {
     }
   }
 
+  static cenotaph(): Runestone {
+    return new Runestone(true, None, None, [], None);
+  }
+
   static decipher(transaction: bitcoin.Transaction): Option<Runestone> {
     const optionPayload = Runestone.payload(transaction);
     if (optionPayload.isNone()) {
@@ -56,12 +60,12 @@ export class Runestone {
     }
     const payload = optionPayload.unwrap();
     if (!isValidPayload(payload)) {
-      return Some(new Runestone(true, None, None, [], None));
+      return Some(Runestone.cenotaph());
     }
 
     const optionIntegers = Runestone.integers(payload);
     if (optionIntegers.isNone()) {
-      return Some(new Runestone(true, None, None, [], None));
+      return Some(Runestone.cenotaph());
     }
 
     const { cenotaph, edicts, fields } = Message.fromIntegers(
@@ -105,15 +109,17 @@ export class Runestone {
         value <= 0xffn && Number(value) <= MAX_DIVISIBILITY
           ? Some(Number(value))
           : None
-    ).unwrapOr(0);
-
-    const limit = Tag.take(Tag.LIMIT, fields, 1, ([value]) =>
-      value <= MAX_LIMIT ? Some(value) : None
     );
+
+    const limit = Tag.take(Tag.LIMIT, fields, 1, ([value]) => Some(value));
 
     const rune = Tag.take(Tag.RUNE, fields, 1, ([value]) =>
       Some(new Rune(value))
     );
+
+    const cap = Tag.take(Tag.CAP, fields, 1, ([value]) => Some(value));
+
+    const premine = Tag.take(Tag.PREMINE, fields, 1, ([value]) => Some(value));
 
     const spacers = Tag.take(
       Tag.SPACERS,
@@ -123,7 +129,7 @@ export class Runestone {
         value <= u128(U32_MAX) && Number(value) <= MAX_SPACERS
           ? Some(Number(value))
           : None
-    ).unwrapOr(0);
+    );
 
     const symbol = Tag.take(Tag.SYMBOL, fields, 1, ([value]) => {
       if (value > u128(U32_MAX)) {
@@ -138,7 +144,7 @@ export class Runestone {
     });
 
     const term = Tag.take(Tag.TERM, fields, 1, ([value]) =>
-      value <= 0xffff_ffffn ? Some(Number(value)) : None
+      value <= U32_MAX ? Some(Number(value)) : None
     );
 
     let flags = Tag.take(Tag.FLAGS, fields, 1, ([value]) =>
@@ -153,6 +159,18 @@ export class Runestone {
     const mint = mintResult.set;
     flags = mintResult.flags;
 
+    const overflow = (() => {
+      const premineU128 = premine.unwrapOr(u128(0));
+      const capU128 = cap.unwrapOr(u128(0));
+      const limitU128 = limit.unwrapOr(u128(0));
+
+      const multiplyResult = u128.checkedMultiply(capU128, limitU128);
+      if (multiplyResult.isNone()) {
+        return None;
+      }
+      return u128.checkedAdd(premineU128, multiplyResult.unwrap());
+    })().isNone();
+
     let etching: Option<Etching> = etch
       ? Some(
           new Etching(
@@ -162,11 +180,13 @@ export class Runestone {
             symbol,
             mint
               ? Some({
+                  cap,
                   deadline,
                   limit,
                   term,
                 })
-              : None
+              : None,
+            premine
           )
         )
       : None;
@@ -174,6 +194,7 @@ export class Runestone {
     return Some(
       new Runestone(
         cenotaph ||
+          overflow ||
           flags !== 0n ||
           [...fields.keys()].find((tag) => tag % 2n === 0n) !== undefined,
         claim,
@@ -203,19 +224,26 @@ export class Runestone {
         payloads.push(Tag.encode(Tag.RUNE, [rune.value]));
       }
 
-      if (etching.divisibility !== 0) {
+      if (etching.divisibility.isSome()) {
         payloads.push(
-          Tag.encode(Tag.DIVISIBILITY, [u128(etching.divisibility)])
+          Tag.encode(Tag.DIVISIBILITY, [u128(etching.divisibility.unwrap())])
         );
       }
 
-      if (etching.spacers !== 0) {
-        payloads.push(Tag.encode(Tag.SPACERS, [u128(etching.spacers)]));
+      if (etching.spacers.isSome()) {
+        payloads.push(
+          Tag.encode(Tag.SPACERS, [u128(etching.spacers.unwrap())])
+        );
       }
 
       if (etching.symbol.isSome()) {
         const symbol = etching.symbol.unwrap();
         payloads.push(Tag.encode(Tag.SYMBOL, [u128(symbol.codePointAt(0)!)]));
+      }
+
+      if (etching.premine.isSome()) {
+        const premine = etching.premine.unwrap();
+        payloads.push(Tag.encode(Tag.SYMBOL, [premine]));
       }
 
       if (etching.mint.isSome()) {
@@ -234,6 +262,11 @@ export class Runestone {
         if (mint.term.isSome()) {
           const term = mint.term.unwrap();
           payloads.push(Tag.encode(Tag.TERM, [u128(term)]));
+        }
+
+        if (mint.cap.isSome()) {
+          const cap = mint.cap.unwrap();
+          payloads.push(Tag.encode(Tag.CAP, [cap]));
         }
       }
     }

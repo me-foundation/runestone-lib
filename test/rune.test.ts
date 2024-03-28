@@ -181,4 +181,21 @@ describe('rune', () => {
       }
     }
   });
+
+  test('commitment', () => {
+    function testcase(rune: number | u128, bytes: number[]) {
+      expect([...new Rune(u128(rune)).commitment]).toEqual(bytes);
+    }
+
+    testcase(0, []);
+    testcase(1, [1]);
+    testcase(255, [255]);
+    testcase(256, [0, 1]);
+    testcase(65535, [255, 255]);
+    testcase(65536, [0, 0, 1]);
+    testcase(
+      u128.MAX,
+      _.range(16).map(() => 255)
+    );
+  });
 });

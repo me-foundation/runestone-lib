@@ -1,6 +1,6 @@
 import { Chain } from './chain';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from './constants';
-import { u128 } from './u128';
+import { U32_MAX, u128 } from './u128';
 import _ from 'lodash';
 
 export class Rune {
@@ -60,7 +60,7 @@ export class Rune {
     let progress = u128.saturatingSub(offset, startSubsidyInterval);
 
     let length = u128.saturatingSub(u128(12n), u128(progress / INTERVAL));
-    let lengthNumber = Number(length & 0xffff_ffffn);
+    let lengthNumber = Number(length & u128(U32_MAX));
 
     let endStepInterval = Rune.STEPS[lengthNumber];
 
@@ -78,6 +78,19 @@ export class Rune {
 
   get reserved(): boolean {
     return this.value >= RESERVED;
+  }
+
+  get commitment(): Buffer {
+    const bytes = Buffer.alloc(16);
+    bytes.writeBigUInt64LE(0xffffffff_ffffffffn & this.value, 0);
+    bytes.writeBigUInt64LE(this.value >> 64n, 8);
+
+    let end = bytes.length;
+    while (end > 0 && bytes.at(end - 1) === 0) {
+      end--;
+    }
+
+    return bytes.subarray(0, end);
   }
 
   static getReserved(n: u128): Rune {

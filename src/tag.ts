@@ -12,6 +12,8 @@ export enum Tag {
   DEADLINE = 10,
   DEFAULT_OUTPUT = 12,
   CLAIM = 14,
+  CAP = 16,
+  PREMINE = 18,
   CENOTAPH = 126,
 
   DIVISIBILITY = 1,
