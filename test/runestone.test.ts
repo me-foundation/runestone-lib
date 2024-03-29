@@ -214,16 +214,16 @@ describe('runestone', () => {
     expect(mint.offset[1].unwrap()).toBe(4n);
     expect(mint.height[0].isNone()).toBe(true);
     expect(mint.height[1].isNone()).toBe(true);
-    expect(mint.limit.isNone()).toBe(true);
+    expect(mint.amount.isNone()).toBe(true);
     expect(mint.cap.isNone()).toBe(true);
   });
 
-  test('decipher_etching_with_limit', () => {
+  test('decipher_etching_with_amount', () => {
     const runestone = decipher(
       [
         Tag.FLAGS,
         Flag.mask(Flag.ETCHING) | Flag.mask(Flag.TERMS),
-        Tag.LIMIT,
+        Tag.AMOUNT,
         4,
         Tag.BODY,
         1,
@@ -247,7 +247,7 @@ describe('runestone', () => {
     expect(mint.height[0].isNone()).toBe(true);
     expect(mint.height[1].isNone()).toBe(true);
     expect(mint.cap.isNone()).toBe(true);
-    expect(mint.limit.unwrap()).toBe(4n);
+    expect(mint.amount.unwrap()).toBe(4n);
   });
 
   test('invalid_varint_produces_cenotaph', () => {
@@ -465,7 +465,7 @@ describe('runestone', () => {
         'a'.codePointAt(0)!,
         Tag.OFFSET_END,
         2,
-        Tag.LIMIT,
+        Tag.AMOUNT,
         3,
         Tag.PREMINE,
         8,
@@ -500,7 +500,7 @@ describe('runestone', () => {
     const mint = etching.terms.unwrap();
     expect(mint.offset[0].isNone()).toBe(true);
     expect(mint.offset[1].unwrap()).toBe(2n);
-    expect(mint.limit.unwrap()).toBe(3n);
+    expect(mint.amount.unwrap()).toBe(3n);
     expect(mint.height[0].isNone()).toBe(true);
     expect(mint.height[1].isNone()).toBe(true);
     expect(mint.cap.unwrap()).toBe(9n);
@@ -576,7 +576,7 @@ describe('runestone', () => {
         97,
         Tag.OFFSET_END,
         2,
-        Tag.LIMIT,
+        Tag.AMOUNT,
         3,
         Tag.BODY,
         1,
@@ -740,7 +740,7 @@ describe('runestone', () => {
           Some('\u{10ffff}'),
           Some({
             cap: Some(u128.MAX),
-            limit: Some(u128.MAX),
+            amount: Some(u128.MAX),
             offset: [Some(u64.MAX), Some(u64.MAX)],
             height: [Some(u64.MAX), Some(u64.MAX)],
           }),
@@ -957,9 +957,9 @@ describe('runestone', () => {
             expect(txnMint.offset[1].unwrap()).toBe(mint.offset[1].unwrap());
           }
 
-          expect(txnMint.limit.isSome()).toBe(mint.limit.isSome());
-          if (txnMint.limit.isSome()) {
-            expect(txnMint.limit.unwrap()).toBe(mint.limit.unwrap());
+          expect(txnMint.amount.isSome()).toBe(mint.amount.isSome());
+          if (txnMint.amount.isSome()) {
+            expect(txnMint.amount.unwrap()).toBe(mint.amount.unwrap());
           }
 
           expect(txnMint.height[0].isSome()).toBe(mint.height[0].isSome());
@@ -1091,7 +1091,7 @@ describe('runestone', () => {
             Some({
               cap: Some(u128(11)),
               height: [Some(u64(12)), Some(u64(13))],
-              limit: Some(u128(14)),
+              amount: Some(u128(14)),
               offset: [Some(u64(15)), Some(u64(16))],
             }),
             Some(u128(8))
@@ -1111,7 +1111,7 @@ describe('runestone', () => {
         '@'.codePointAt(0)!,
         Tag.PREMINE,
         8,
-        Tag.LIMIT,
+        Tag.AMOUNT,
         14,
         Tag.CAP,
         11,
@@ -1258,13 +1258,17 @@ describe('runestone', () => {
   test('invalid_supply_produces_cenotaph', () => {
     expect(
       decipher(
-        [Tag.FLAGS, Flag.mask(Flag.ETCHING | Flag.TERMS), Tag.CAP, 1, Tag.LIMIT, u128.MAX].map(u128)
+        [Tag.FLAGS, Flag.mask(Flag.ETCHING | Flag.TERMS), Tag.CAP, 1, Tag.AMOUNT, u128.MAX].map(
+          u128
+        )
       ).cenotaph
     ).toBe(false);
 
     expect(
       decipher(
-        [Tag.FLAGS, Flag.mask(Flag.ETCHING | Flag.TERMS), Tag.CAP, 2, Tag.LIMIT, u128.MAX].map(u128)
+        [Tag.FLAGS, Flag.mask(Flag.ETCHING | Flag.TERMS), Tag.CAP, 2, Tag.AMOUNT, u128.MAX].map(
+          u128
+        )
       ).cenotaph
     ).toBe(true);
 
@@ -1275,7 +1279,7 @@ describe('runestone', () => {
           Flag.mask(Flag.ETCHING | Flag.TERMS),
           Tag.CAP,
           2,
-          Tag.LIMIT,
+          Tag.AMOUNT,
           u128.MAX / 2n + 1n,
         ].map(u128)
       ).cenotaph
@@ -1290,7 +1294,7 @@ describe('runestone', () => {
           1,
           Tag.CAP,
           1,
-          Tag.LIMIT,
+          Tag.AMOUNT,
           u128.MAX,
         ].map(u128)
       ).cenotaph

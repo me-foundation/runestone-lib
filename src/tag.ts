@@ -10,7 +10,7 @@ export enum Tag {
 
   PREMINE = 6,
   CAP = 8,
-  LIMIT = 10,
+  AMOUNT = 10,
   HEIGHT_START = 12,
   HEIGHT_END = 14,
   OFFSET_START = 16,
