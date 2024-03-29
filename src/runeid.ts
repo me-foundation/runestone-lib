@@ -1,14 +1,14 @@
 import { None, Option, Some } from '@sniptt/monads';
 import _ from 'lodash';
-import { U32_MAX, u128 } from './u128';
+import { u64, u32, u128 } from './integer';
 
 export class RuneId {
-  constructor(readonly block: number, readonly tx: number) {}
+  constructor(readonly block: u64, readonly tx: u32) {}
 
-  static new(block: number, tx: number): Option<RuneId> {
+  static new(block: u64, tx: u32): Option<RuneId> {
     const id = new RuneId(block, tx);
 
-    if (id.block === 0 && id.tx > 0) {
+    if (id.block === 0n && id.tx > 0) {
       return None;
     }
 
@@ -20,17 +20,19 @@ export class RuneId {
   }
 
   delta(next: RuneId): Option<[u128, u128]> {
-    const block = next.block - this.block;
-    if (block < 0) {
+    const optionBlock = u64.checkedSub(next.block, this.block);
+    if (optionBlock.isNone()) {
       return None;
     }
+    const block = optionBlock.unwrap();
 
-    let tx: number;
-    if (block === 0) {
-      tx = next.tx - this.tx;
-      if (tx < 0) {
+    let tx: u32;
+    if (block === 0n) {
+      const optionTx = u32.checkedSub(next.tx, this.tx);
+      if (optionTx.isNone()) {
         return None;
       }
+      tx = optionTx.unwrap();
     } else {
       tx = next.tx;
     }
@@ -39,24 +41,34 @@ export class RuneId {
   }
 
   next(block: u128, tx: u128): Option<RuneId> {
-    if (block > BigInt(U32_MAX) || tx > BigInt(U32_MAX)) {
+    const optionBlock = u128.tryIntoU64(block);
+    const optionTx = u128.tryIntoU32(tx);
+
+    if (optionBlock.isNone() || optionTx.isNone()) {
       return None;
     }
 
-    const blockNumber = Number(block);
-    const txNumber = Number(tx);
+    const blockU64 = optionBlock.unwrap();
+    const txU32 = optionTx.unwrap();
 
-    const nextBlock = this.block + blockNumber;
-    if (nextBlock > U32_MAX) {
+    const nextBlock = u64.checkedAdd(this.block, blockU64);
+    if (nextBlock.isNone()) {
       return None;
     }
 
-    const nextTx = blockNumber === 0 ? this.tx + txNumber : txNumber;
-    if (nextTx > U32_MAX) {
-      return None;
+    let nextTx: u32;
+    if (blockU64 === 0n) {
+      const optionAdd = u32.checkedAdd(this.tx, txU32);
+      if (optionAdd.isNone()) {
+        return None;
+      }
+
+      nextTx = optionAdd.unwrap();
+    } else {
+      nextTx = txU32;
     }
 
-    return RuneId.new(nextBlock, nextTx);
+    return RuneId.new(nextBlock.unwrap(), nextTx);
   }
 
   toString() {
@@ -73,6 +85,6 @@ export class RuneId {
     if (!/^\d+$/.test(block) || !/^\d+$/.test(tx)) {
       throw new Error(`invalid rune ID: ${s}`);
     }
-    return new RuneId(Number(BigInt(block)), Number(BigInt(tx)));
+    return new RuneId(u64(BigInt(block)), u32(BigInt(tx)));
   }
 }

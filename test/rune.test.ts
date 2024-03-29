@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { U128_MAX_BIGINT, u128 } from '../src/u128';
+import { U128_MAX_BIGINT, u128 } from '../src/integer/u128';
 import { Rune } from '../src/rune';
 import { Chain } from '../src/chain';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from '../src/constants';
@@ -52,9 +52,7 @@ describe('rune', () => {
 
   test('mainnet minumum at height', () => {
     function testcase(height: number, minimum: string) {
-      expect(
-        Rune.getMinimumAtHeight(Chain.MAINNET, u128(height)).toString()
-      ).toEqual(minimum);
+      expect(Rune.getMinimumAtHeight(Chain.MAINNET, u128(height)).toString()).toEqual(minimum);
     }
 
     const START = SUBSIDY_HALVING_INTERVAL * 4;
@@ -132,9 +130,7 @@ describe('rune', () => {
 
   test('minimum at height', () => {
     function testcase(chain: Chain, height: number, minimum: string) {
-      expect(Rune.getMinimumAtHeight(chain, u128(height)).toString()).toEqual(
-        minimum
-      );
+      expect(Rune.getMinimumAtHeight(chain, u128(height)).toString()).toEqual(minimum);
     }
 
     testcase(Chain.TESTNET, 0, 'AAAAAAAAAAAAA');

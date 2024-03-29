@@ -1,14 +1,9 @@
-import {
-  MAGIC_NUMBER,
-  MAX_DIVISIBILITY,
-  MAX_LIMIT,
-  MAX_SCRIPT_ELEMENT_SIZE,
-} from './constants';
+import { MAGIC_NUMBER, MAX_DIVISIBILITY, MAX_SCRIPT_ELEMENT_SIZE } from './constants';
 import { Edict } from './edict';
 import { Etching } from './etching';
 import { SeekBuffer } from './seekbuffer';
 import { Tag } from './tag';
-import { U32_MAX, u128 } from './u128';
+import { u128, u32, u64, u8 } from './integer';
 import * as bitcoin from 'bitcoinjs-lib';
 import _ from 'lodash';
 import { Option, Some, None } from '@sniptt/monads';
@@ -35,8 +30,8 @@ export function isValidPayload(payload: Payload): payload is ValidPayload {
 export class Runestone {
   constructor(
     readonly cenotaph: boolean,
-    readonly claim: Option<RuneId>,
-    readonly defaultOutput: Option<number>,
+    readonly mint: Option<RuneId>,
+    readonly pointer: Option<u32>,
     readonly edicts: Edict[],
     readonly etching: Option<Etching>
   ) {}
@@ -68,54 +63,42 @@ export class Runestone {
       return Some(Runestone.cenotaph());
     }
 
-    const { cenotaph, edicts, fields } = Message.fromIntegers(
-      transaction,
-      optionIntegers.unwrap()
-    );
+    const { cenotaph, edicts, fields } = Message.fromIntegers(transaction, optionIntegers.unwrap());
 
-    const claim = Tag.take(
-      Tag.CLAIM,
-      fields,
-      2,
-      ([block, tx]): Option<RuneId> =>
-        block <= u128(U32_MAX) && tx <= u128(U32_MAX)
-          ? RuneId.new(Number(block), Number(tx))
-          : None
-    );
+    const mint = Tag.take(Tag.MINT, fields, 2, ([block, tx]): Option<RuneId> => {
+      const optionBlockU64 = u128.tryIntoU64(block);
+      const optionTxU32 = u128.tryIntoU32(tx);
 
-    const deadline = Tag.take(
-      Tag.DEADLINE,
+      if (optionBlockU64.isNone() || optionTxU32.isNone()) {
+        return None;
+      }
+
+      return RuneId.new(optionBlockU64.unwrap(), optionTxU32.unwrap());
+    });
+
+    const pointer = Tag.take(
+      Tag.POINTER,
       fields,
       1,
-      ([value]): Option<number> =>
-        value <= u128(U32_MAX) ? Some(Number(value)) : None
-    );
-
-    const defaultOutput = Tag.take(
-      Tag.DEFAULT_OUTPUT,
-      fields,
-      1,
-      ([value]): Option<number> =>
-        value <= u128(U32_MAX) && Number(value) < transaction.outs.length
-          ? Some(Number(value))
-          : None
+      ([value]): Option<u32> =>
+        u128
+          .tryIntoU32(value)
+          .andThen((value) => (value < transaction.outs.length ? Some(value) : None))
     );
 
     const divisibility = Tag.take(
       Tag.DIVISIBILITY,
       fields,
       1,
-      ([value]): Option<number> =>
-        value <= 0xffn && Number(value) <= MAX_DIVISIBILITY
-          ? Some(Number(value))
-          : None
+      ([value]): Option<u8> =>
+        u128
+          .tryIntoU8(value)
+          .andThen<u8>((value) => (value <= MAX_DIVISIBILITY ? Some(value) : None))
     );
 
     const limit = Tag.take(Tag.LIMIT, fields, 1, ([value]) => Some(value));
 
-    const rune = Tag.take(Tag.RUNE, fields, 1, ([value]) =>
-      Some(new Rune(value))
-    );
+    const rune = Tag.take(Tag.RUNE, fields, 1, ([value]) => Some(new Rune(value)));
 
     const cap = Tag.take(Tag.CAP, fields, 1, ([value]) => Some(value));
 
@@ -125,39 +108,39 @@ export class Runestone {
       Tag.SPACERS,
       fields,
       1,
-      ([value]): Option<number> =>
-        value <= u128(U32_MAX) && Number(value) <= MAX_SPACERS
-          ? Some(Number(value))
-          : None
+      ([value]): Option<u32> =>
+        u128.tryIntoU32(value).andThen((value) => (value <= MAX_SPACERS ? Some(value) : None))
     );
 
-    const symbol = Tag.take(Tag.SYMBOL, fields, 1, ([value]) => {
-      if (value > u128(U32_MAX)) {
-        return None;
-      }
-
-      try {
-        return Some(String.fromCodePoint(Number(value)));
-      } catch (e) {
-        return None;
-      }
-    });
-
-    const term = Tag.take(Tag.TERM, fields, 1, ([value]) =>
-      value <= U32_MAX ? Some(Number(value)) : None
+    const symbol = Tag.take(Tag.SYMBOL, fields, 1, ([value]) =>
+      u128.tryIntoU32(value).andThen((value) => {
+        try {
+          return Some(String.fromCodePoint(Number(value)));
+        } catch (e) {
+          return None;
+        }
+      })
     );
 
-    let flags = Tag.take(Tag.FLAGS, fields, 1, ([value]) =>
-      Some(value)
-    ).unwrapOr(u128(0));
+    const offset = [
+      Tag.take(Tag.OFFSET_START, fields, 1, ([value]) => u128.tryIntoU64(value)),
+      Tag.take(Tag.OFFSET_END, fields, 1, ([value]) => u128.tryIntoU64(value)),
+    ] as const;
 
-    const etchResult = Flag.take(flags, Flag.ETCH);
-    const etch = etchResult.set;
-    flags = etchResult.flags;
+    const height = [
+      Tag.take(Tag.HEIGHT_START, fields, 1, ([value]) => u128.tryIntoU64(value)),
+      Tag.take(Tag.HEIGHT_END, fields, 1, ([value]) => u128.tryIntoU64(value)),
+    ] as const;
 
-    const mintResult = Flag.take(flags, Flag.MINT);
-    const mint = mintResult.set;
-    flags = mintResult.flags;
+    let flags = Tag.take(Tag.FLAGS, fields, 1, ([value]) => Some(value)).unwrapOr(u128(0));
+
+    const etchingResult = Flag.take(flags, Flag.ETCHING);
+    const etchingFlag = etchingResult.set;
+    flags = etchingResult.flags;
+
+    const termsResult = Flag.take(flags, Flag.TERMS);
+    const terms = termsResult.set;
+    flags = termsResult.flags;
 
     const overflow = (() => {
       const premineU128 = premine.unwrapOr(u128(0));
@@ -171,19 +154,19 @@ export class Runestone {
       return u128.checkedAdd(premineU128, multiplyResult.unwrap());
     })().isNone();
 
-    let etching: Option<Etching> = etch
+    let etching: Option<Etching> = etchingFlag
       ? Some(
           new Etching(
             divisibility,
             rune,
             spacers,
             symbol,
-            mint
+            terms
               ? Some({
                   cap,
-                  deadline,
+                  offset,
                   limit,
-                  term,
+                  height,
                 })
               : None,
             premine
@@ -197,8 +180,8 @@ export class Runestone {
           overflow ||
           flags !== 0n ||
           [...fields.keys()].find((tag) => tag % 2n === 0n) !== undefined,
-        claim,
-        defaultOutput,
+        mint,
+        pointer,
         edicts,
         etching
       )
@@ -211,75 +194,48 @@ export class Runestone {
     if (this.etching.isSome()) {
       const etching = this.etching.unwrap();
       let flags = u128(0);
-      flags = Flag.set(flags, Flag.ETCH);
+      flags = Flag.set(flags, Flag.ETCHING);
 
-      if (etching.mint.isSome()) {
-        flags = Flag.set(flags, Flag.MINT);
+      if (etching.terms.isSome()) {
+        flags = Flag.set(flags, Flag.TERMS);
       }
 
       payloads.push(Tag.encode(Tag.FLAGS, [flags]));
 
-      if (etching.rune.isSome()) {
-        const rune = etching.rune.unwrap();
-        payloads.push(Tag.encode(Tag.RUNE, [rune.value]));
-      }
+      payloads.push(
+        Tag.encodeOptionInt(
+          Tag.RUNE,
+          etching.rune.map((rune) => rune.value)
+        )
+      );
+      payloads.push(Tag.encodeOptionInt(Tag.DIVISIBILITY, etching.divisibility.map(u128)));
+      payloads.push(Tag.encodeOptionInt(Tag.SPACERS, etching.spacers.map(u128)));
+      payloads.push(
+        Tag.encodeOptionInt(
+          Tag.SYMBOL,
+          etching.symbol.map((symbol) => u128(symbol.codePointAt(0)!))
+        )
+      );
+      payloads.push(Tag.encodeOptionInt(Tag.PREMINE, etching.premine));
 
-      if (etching.divisibility.isSome()) {
-        payloads.push(
-          Tag.encode(Tag.DIVISIBILITY, [u128(etching.divisibility.unwrap())])
-        );
-      }
+      if (etching.terms.isSome()) {
+        const terms = etching.terms.unwrap();
 
-      if (etching.spacers.isSome()) {
-        payloads.push(
-          Tag.encode(Tag.SPACERS, [u128(etching.spacers.unwrap())])
-        );
-      }
-
-      if (etching.symbol.isSome()) {
-        const symbol = etching.symbol.unwrap();
-        payloads.push(Tag.encode(Tag.SYMBOL, [u128(symbol.codePointAt(0)!)]));
-      }
-
-      if (etching.premine.isSome()) {
-        const premine = etching.premine.unwrap();
-        payloads.push(Tag.encode(Tag.SYMBOL, [premine]));
-      }
-
-      if (etching.mint.isSome()) {
-        const mint = etching.mint.unwrap();
-
-        if (mint.deadline.isSome()) {
-          const deadline = mint.deadline.unwrap();
-          payloads.push(Tag.encode(Tag.DEADLINE, [u128(deadline)]));
-        }
-
-        if (mint.limit.isSome()) {
-          const limit = mint.limit.unwrap();
-          payloads.push(Tag.encode(Tag.LIMIT, [limit]));
-        }
-
-        if (mint.term.isSome()) {
-          const term = mint.term.unwrap();
-          payloads.push(Tag.encode(Tag.TERM, [u128(term)]));
-        }
-
-        if (mint.cap.isSome()) {
-          const cap = mint.cap.unwrap();
-          payloads.push(Tag.encode(Tag.CAP, [cap]));
-        }
+        payloads.push(Tag.encodeOptionInt(Tag.LIMIT, terms.limit));
+        payloads.push(Tag.encodeOptionInt(Tag.CAP, terms.cap));
+        payloads.push(Tag.encodeOptionInt(Tag.HEIGHT_START, terms.height[0]));
+        payloads.push(Tag.encodeOptionInt(Tag.HEIGHT_END, terms.height[1]));
+        payloads.push(Tag.encodeOptionInt(Tag.OFFSET_START, terms.offset[0]));
+        payloads.push(Tag.encodeOptionInt(Tag.OFFSET_END, terms.offset[1]));
       }
     }
 
-    if (this.claim.isSome()) {
-      const claim = this.claim.unwrap();
-      payloads.push(Tag.encode(Tag.CLAIM, [claim.block, claim.tx].map(u128)));
+    if (this.mint.isSome()) {
+      const claim = this.mint.unwrap();
+      payloads.push(Tag.encode(Tag.MINT, [claim.block, claim.tx].map(u128)));
     }
 
-    if (this.defaultOutput.isSome()) {
-      const defaultOutput = this.defaultOutput.unwrap();
-      payloads.push(Tag.encode(Tag.DEFAULT_OUTPUT, [u128(defaultOutput)]));
-    }
+    payloads.push(Tag.encodeOptionInt(Tag.POINTER, this.pointer.map(u128)));
 
     if (this.cenotaph) {
       payloads.push(Tag.encode(Tag.CENOTAPH, [u128(0)]));
@@ -290,7 +246,7 @@ export class Runestone {
 
       const edicts = _.sortBy(this.edicts, (edict) => edict.id);
 
-      let previous = new RuneId(0, 0);
+      let previous = new RuneId(u64(0), u32(0));
       for (const edict of edicts) {
         const [block, tx] = previous.delta(edict.id).unwrap();
 
@@ -389,7 +345,7 @@ export class Message {
       const tag = payload[i];
 
       if (u128(Tag.BODY) === tag) {
-        let id = new RuneId(0, 0);
+        let id = new RuneId(u64(0), u32(0));
         for (const chunk of _.chunk(payload.slice(i + 1), 4)) {
           if (chunk.length !== 4) {
             cenotaph = true;

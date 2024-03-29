@@ -1,6 +1,6 @@
 import { Chain } from './chain';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from './constants';
-import { U32_MAX, u128 } from './u128';
+import { u128, u32 } from './integer';
 import _ from 'lodash';
 
 export class Rune {
@@ -60,7 +60,7 @@ export class Rune {
     let progress = u128.saturatingSub(offset, startSubsidyInterval);
 
     let length = u128.saturatingSub(u128(12n), u128(progress / INTERVAL));
-    let lengthNumber = Number(length & u128(U32_MAX));
+    let lengthNumber = Number(length & u128(u32.MAX));
 
     let endStepInterval = Rune.STEPS[lengthNumber];
 
@@ -69,10 +69,7 @@ export class Rune {
     let remainder = u128(progress % INTERVAL);
 
     return new Rune(
-      u128(
-        endStepInterval -
-          ((endStepInterval - startStepInterval) * remainder) / INTERVAL
-      )
+      u128(endStepInterval - ((endStepInterval - startStepInterval) * remainder) / INTERVAL)
     );
   }
 
@@ -124,9 +121,7 @@ export class Rune {
       }
       x = u128.checkedMultiply(x, u128(26)).unwrap();
       if ('A' <= c && c <= 'Z') {
-        x = u128
-          .checkedAdd(x, u128(c.charCodeAt(0) - 'A'.charCodeAt(0)))
-          .unwrap();
+        x = u128.checkedAdd(x, u128(c.charCodeAt(0) - 'A'.charCodeAt(0))).unwrap();
       } else {
         throw new Error(`invalid character in rune name: ${c}`);
       }
