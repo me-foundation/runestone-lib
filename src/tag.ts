@@ -1,19 +1,22 @@
 import { None, Option, Some } from '@sniptt/monads';
 import _ from 'lodash';
-import { u128 } from './u128';
+import { u128 } from './integer';
 import { FixedArray } from './utils';
 
 export enum Tag {
   BODY = 0,
   FLAGS = 2,
   RUNE = 4,
-  LIMIT = 6,
-  TERM = 8,
-  DEADLINE = 10,
-  DEFAULT_OUTPUT = 12,
-  CLAIM = 14,
-  CAP = 16,
-  PREMINE = 18,
+
+  PREMINE = 6,
+  CAP = 8,
+  LIMIT = 10,
+  HEIGHT_START = 12,
+  HEIGHT_END = 14,
+  OFFSET_START = 16,
+  OFFSET_END = 18,
+  MINT = 20,
+  POINTER = 22,
   CENOTAPH = 126,
 
   DIVISIBILITY = 1,
@@ -58,12 +61,11 @@ export namespace Tag {
 
   export function encode(tag: Tag, values: u128[]): Buffer {
     return Buffer.concat(
-      _.flatten(
-        values.map((value) => [
-          u128.encodeVarInt(u128(tag)),
-          u128.encodeVarInt(value),
-        ])
-      )
+      _.flatten(values.map((value) => [u128.encodeVarInt(u128(tag)), u128.encodeVarInt(value)]))
     );
+  }
+
+  export function encodeOptionInt(tag: Tag, value: Option<number | bigint>) {
+    return value.map((value) => Tag.encode(tag, [u128(value)])).unwrapOr(Buffer.alloc(0));
   }
 }

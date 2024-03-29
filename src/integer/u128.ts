@@ -1,5 +1,8 @@
 import { None, Option, Some } from '@sniptt/monads';
-import { SeekBuffer } from './seekbuffer';
+import { SeekBuffer } from '../seekbuffer';
+import { u64 } from './u64';
+import { u32 } from './u32';
+import { u8 } from './u8';
 
 /**
  * A little utility type used for nominal typing.
@@ -29,8 +32,6 @@ type BigTypedNumber<T> = bigint & {
 export type u128 = BigTypedNumber<'u128'>;
 
 export const U128_MAX_BIGINT = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn;
-
-export const U32_MAX = 0xffff_ffff;
 
 /**
  * Convert Number or BigInt to 128-bit unsigned integer.
@@ -118,6 +119,18 @@ export namespace u128 {
     v.push(Number(value & 0xffn));
 
     return Buffer.from(v);
+  }
+
+  export function tryIntoU64(n: u128): Option<u64> {
+    return n > u64.MAX ? None : Some(u64(n));
+  }
+
+  export function tryIntoU32(n: u128): Option<u32> {
+    return n > u32.MAX ? None : Some(u32(n));
+  }
+
+  export function tryIntoU8(n: u128): Option<u8> {
+    return n > u8.MAX ? None : Some(u8(n));
   }
 }
 

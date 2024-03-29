@@ -1,8 +1,8 @@
-import { u128 } from './u128';
+import { u128 } from './integer';
 
 export enum Flag {
-  ETCH = 0,
-  MINT = 1,
+  ETCHING = 0,
+  TERMS = 1,
   CENOTAPH = 127,
 }
 

@@ -1,6 +1,6 @@
 import { Rune } from '../src/rune';
 import { SpacedRune } from '../src/spacedrune';
-import { u128 } from '../src/u128';
+import { u128 } from '../src/integer/u128';
 
 describe('SpacedRune', () => {
   test('display', () => {
@@ -11,9 +11,7 @@ describe('SpacedRune', () => {
 
   test('fromString', () => {
     function testcase(s: string, rune: string, spacers: number) {
-      expect(SpacedRune.fromString(s)).toEqual(
-        new SpacedRune(Rune.fromString(rune), spacers)
-      );
+      expect(SpacedRune.fromString(s)).toEqual(new SpacedRune(Rune.fromString(rune), spacers));
     }
 
     expect(() => SpacedRune.fromString('.A')).toThrow('leading spacer');

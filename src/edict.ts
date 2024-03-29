@@ -1,12 +1,12 @@
 import * as bitcoin from 'bitcoinjs-lib';
 import { Option, Some, None } from '@sniptt/monads';
 import { RuneId } from './runeid';
-import { U32_MAX, u128 } from './u128';
+import { u128, u32 } from './integer';
 
 export type Edict = {
   id: RuneId;
   amount: u128;
-  output: number;
+  output: u32;
 };
 
 export namespace Edict {
@@ -16,18 +16,20 @@ export namespace Edict {
     amount: u128,
     output: u128
   ): Option<Edict> {
-    if (id.block === 0 && id.tx > 0) {
+    if (id.block === 0n && id.tx > 0n) {
       return None;
     }
 
-    if (output > u128(U32_MAX)) {
+    const optionOutputU32 = u128.tryIntoU32(output);
+    if (optionOutputU32.isNone()) {
+      return None;
+    }
+    const outputU32 = optionOutputU32.unwrap();
+
+    if (outputU32 > tx.outs.length) {
       return None;
     }
 
-    if (output > tx.outs.length) {
-      return None;
-    }
-
-    return Some({ id, amount, output: Number(output) });
+    return Some({ id, amount, output: outputU32 });
   }
 }

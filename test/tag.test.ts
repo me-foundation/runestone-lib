@@ -1,6 +1,6 @@
 import { Some, None } from '@sniptt/monads';
 import { Tag } from '../src/tag';
-import { u128 } from '../src/u128';
+import { u128 } from '../src/integer/u128';
 
 describe('tag', () => {
   test('usable as numbers', () => {
@@ -14,13 +14,9 @@ describe('tag', () => {
 
     expect(Tag.take(Tag.FLAGS, fields, 1, () => None).isNone()).toBe(true);
     expect(fields.size).not.toBe(0);
-    expect(
-      Tag.take(Tag.FLAGS, fields, 1, ([flags]) => Some(flags)).unwrap()
-    ).toBe(3n);
+    expect(Tag.take(Tag.FLAGS, fields, 1, ([flags]) => Some(flags)).unwrap()).toBe(3n);
     expect(fields.size).toBe(0);
-    expect(
-      Tag.take(Tag.FLAGS, fields, 1, ([flags]) => Some(flags)).isNone()
-    ).toBe(true);
+    expect(Tag.take(Tag.FLAGS, fields, 1, ([flags]) => Some(flags)).isNone()).toBe(true);
   });
 
   test('take leaves unconsumed values', () => {
@@ -33,15 +29,11 @@ describe('tag', () => {
 
     expect(fields.get(u128(2))?.length).toBe(3);
 
-    expect(
-      Tag.take(Tag.FLAGS, fields, 2, ([a, b]) => Some([a, b])).unwrap()
-    ).toEqual([1n, 2n]);
+    expect(Tag.take(Tag.FLAGS, fields, 2, ([a, b]) => Some([a, b])).unwrap()).toEqual([1n, 2n]);
 
     expect(fields.get(u128(2))?.length).toBe(1);
 
-    expect(Tag.take(Tag.FLAGS, fields, 1, ([a]) => Some([a])).unwrap()).toEqual(
-      [3n]
-    );
+    expect(Tag.take(Tag.FLAGS, fields, 1, ([a]) => Some([a])).unwrap()).toEqual([3n]);
 
     expect(fields.get(u128(2))).toBeUndefined();
   });
