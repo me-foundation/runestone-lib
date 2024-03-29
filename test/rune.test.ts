@@ -50,7 +50,7 @@ describe('rune', () => {
     expect(() => Rune.fromString('BCGDENLQRQWDSLRUGSNLBTMFIJAW')).toThrow();
   });
 
-  test('mainnet minumum at height', () => {
+  test('mainnet minimum at height', () => {
     function testcase(height: number, minimum: string) {
       expect(Rune.getMinimumAtHeight(Chain.MAINNET, u128(height)).toString()).toEqual(minimum);
     }
