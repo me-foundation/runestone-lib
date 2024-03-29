@@ -96,7 +96,7 @@ export class Runestone {
           .andThen<u8>((value) => (value <= MAX_DIVISIBILITY ? Some(value) : None))
     );
 
-    const limit = Tag.take(Tag.LIMIT, fields, 1, ([value]) => Some(value));
+    const amount = Tag.take(Tag.AMOUNT, fields, 1, ([value]) => Some(value));
 
     const rune = Tag.take(Tag.RUNE, fields, 1, ([value]) => Some(new Rune(value)));
 
@@ -145,9 +145,9 @@ export class Runestone {
     const overflow = (() => {
       const premineU128 = premine.unwrapOr(u128(0));
       const capU128 = cap.unwrapOr(u128(0));
-      const limitU128 = limit.unwrapOr(u128(0));
+      const amountU128 = amount.unwrapOr(u128(0));
 
-      const multiplyResult = u128.checkedMultiply(capU128, limitU128);
+      const multiplyResult = u128.checkedMultiply(capU128, amountU128);
       if (multiplyResult.isNone()) {
         return None;
       }
@@ -163,9 +163,9 @@ export class Runestone {
             symbol,
             terms
               ? Some({
+                  amount,
                   cap,
                   offset,
-                  limit,
                   height,
                 })
               : None,
@@ -221,7 +221,7 @@ export class Runestone {
       if (etching.terms.isSome()) {
         const terms = etching.terms.unwrap();
 
-        payloads.push(Tag.encodeOptionInt(Tag.LIMIT, terms.limit));
+        payloads.push(Tag.encodeOptionInt(Tag.AMOUNT, terms.amount));
         payloads.push(Tag.encodeOptionInt(Tag.CAP, terms.cap));
         payloads.push(Tag.encodeOptionInt(Tag.HEIGHT_START, terms.height[0]));
         payloads.push(Tag.encodeOptionInt(Tag.HEIGHT_END, terms.height[1]));
