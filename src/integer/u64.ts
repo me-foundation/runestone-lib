@@ -1,0 +1,49 @@
+import { None, Option, Some } from '@sniptt/monads';
+
+/**
+ * A little utility type used for nominal typing.
+ *
+ * See {@link https://michalzalecki.com/nominal-typing-in-typescript/}
+ */
+type BigTypedNumber<T> = bigint & {
+  /**
+   * # !!! DO NOT USE THIS PROPERTY IN YOUR CODE !!!
+   * ## This is just used to make each `BigTypedNumber` alias unique for Typescript and doesn't actually exist.
+   * @ignore
+   * @private
+   * @readonly
+   * @type {undefined}
+   */
+  readonly __kind__: T;
+};
+
+export type u64 = BigTypedNumber<'u64'>;
+
+export const U64_MAX_BIGINT = 0xffff_ffff_ffff_ffffn;
+
+export function u64(num: number | bigint): u64 {
+  const bigNum = typeof num == 'bigint' ? num : BigInt(num);
+  return (bigNum & U64_MAX_BIGINT) as u64;
+}
+
+export namespace u64 {
+  export const MAX = u64(U64_MAX_BIGINT);
+
+  export function checkedAdd(x: u64, y: u64): Option<u64> {
+    const result = x + y;
+    if (result > u64.MAX) {
+      return None;
+    }
+
+    return Some(u64(result));
+  }
+
+  export function checkedSub(x: u64, y: u64): Option<u64> {
+    const result = x - y;
+    if (result < 0n) {
+      return None;
+    }
+
+    return Some(u64(result));
+  }
+}
