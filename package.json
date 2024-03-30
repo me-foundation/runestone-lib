@@ -1,15 +1,18 @@
 {
   "name": "@magiceden-oss/runestone-lib",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "./dist/index.js",
-  "types": "./src/index.d.ts",
+  "types": "./dist/index.d.ts",
   "type": "module",
   "scripts": {
     "test": "jest",
     "build": "tsc -p tsconfig.json",
     "start": "node index.js"
   },
+  "files": [
+    "dist"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
