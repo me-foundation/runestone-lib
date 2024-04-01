@@ -1,10 +1,6 @@
 import { GetBlockParams, RPCClient, Verbosity } from 'rpc-bitcoin';
-import {
-  RunestoneStorage,
-  RuneBlockIndex,
-  RunestoneIndexerOptions,
-} from './types';
-import { Chain } from '../chain';
+import { RunestoneStorage, RuneBlockIndex, RunestoneIndexerOptions } from './types';
+import { Network } from '../network';
 
 type Vin = {
   txid: string;
@@ -74,26 +70,23 @@ class BitcoinRpcClient {
     return this._rpc.getbestblockhash();
   }
 
-  async getblockchaintype(): Promise<Chain> {
+  async getblockchaintype(): Promise<Network> {
     const { chain } = await this._rpc.getblockchaininfo();
     switch (chain) {
       case 'main':
-        return Chain.MAINNET;
+        return Network.MAINNET;
       case 'test':
-        return Chain.TESTNET;
+        return Network.TESTNET;
       case 'signet':
-        return Chain.SIGNET;
+        return Network.SIGNET;
       case 'regtest':
-        return Chain.REGTEST;
+        return Network.REGTEST;
       default:
-        return Chain.MAINNET;
+        return Network.MAINNET;
     }
   }
 
-  getblock<T extends GetBlockParams>({
-    verbosity,
-    blockhash,
-  }: T): Promise<GetBlockReturn<T>> {
+  getblock<T extends GetBlockParams>({ verbosity, blockhash }: T): Promise<GetBlockReturn<T>> {
     return this._rpc.getblock({ verbosity, blockhash });
   }
 }
@@ -106,14 +99,14 @@ export class RunestoneIndexer {
   private readonly _pollIntervalMs: number;
 
   private _started: boolean;
-  private _chain: Chain;
+  private _chain: Network;
   private _intervalId: NodeJS.Timeout | null = null;
 
   constructor(options: RunestoneIndexerOptions) {
     this._rpc = new BitcoinRpcClient(new RPCClient(options.bitcoinRpc));
     this._storage = options.storage;
     this._started = false;
-    this._chain = Chain.MAINNET;
+    this._chain = Network.MAINNET;
     this._pollIntervalMs = Math.max(options.pollIntervalMs ?? 10000, 1);
   }
 
@@ -128,10 +121,7 @@ export class RunestoneIndexer {
 
     this._chain = await this._rpc.getblockchaintype();
 
-    this._intervalId = setInterval(
-      () => this.updateRuneUtxoBalances(),
-      this._pollIntervalMs
-    );
+    this._intervalId = setInterval(() => this.updateRuneUtxoBalances(), this._pollIntervalMs);
   }
 
   async stop(): Promise<void> {
@@ -193,7 +183,7 @@ export class RunestoneIndexer {
         await this._storage.resetCurrentBlock(rpcBlock);
       }
     } else {
-      const firstRuneHeight = Chain.getFirstRuneHeight(this._chain);
+      const firstRuneHeight = Network.getFirstRuneHeight(this._chain);
 
       // Iterate through the rpc blocks until we reach first rune height
       const bestblockhash: string = await this._rpc.getbestblockhash();

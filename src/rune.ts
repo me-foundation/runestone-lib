@@ -1,4 +1,4 @@
-import { Chain } from './chain';
+import { Network } from './network';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from './constants';
 import { u128, u32 } from './integer';
 import _ from 'lodash';
@@ -37,12 +37,12 @@ export class Rune {
 
   constructor(readonly value: u128) {}
 
-  static getMinimumAtHeight(chain: Chain, height: u128) {
+  static getMinimumAtHeight(chain: Network, height: u128) {
     let offset = u128.saturatingAdd(height, u128(1));
 
     const INTERVAL = u128(SUBSIDY_HALVING_INTERVAL / 12);
 
-    let startSubsidyInterval = u128(Chain.getFirstRuneHeight(chain));
+    let startSubsidyInterval = u128(Network.getFirstRuneHeight(chain));
 
     let endSubsidyInterval = u128.saturatingAdd(
       startSubsidyInterval,

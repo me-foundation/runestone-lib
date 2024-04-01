@@ -1,22 +1,22 @@
 import { SUBSIDY_HALVING_INTERVAL } from './constants';
 
-export enum Chain {
+export enum Network {
   MAINNET,
   SIGNET,
   TESTNET,
   REGTEST,
 }
 
-export namespace Chain {
-  export function getFirstRuneHeight(chain: Chain): number {
+export namespace Network {
+  export function getFirstRuneHeight(chain: Network): number {
     switch (chain) {
-      case Chain.MAINNET:
+      case Network.MAINNET:
         return SUBSIDY_HALVING_INTERVAL * 4;
-      case Chain.REGTEST:
+      case Network.REGTEST:
         return SUBSIDY_HALVING_INTERVAL * 0;
-      case Chain.SIGNET:
+      case Network.SIGNET:
         return SUBSIDY_HALVING_INTERVAL * 0;
-      case Chain.TESTNET:
+      case Network.TESTNET:
         return SUBSIDY_HALVING_INTERVAL * 12;
     }
   }

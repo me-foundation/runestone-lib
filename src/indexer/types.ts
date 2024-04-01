@@ -51,11 +51,7 @@ export interface RunestoneStorage {
    * @param txid transaction id
    * @param vout output index in transaction
    */
-  getUtxoBalance(
-    rune: string,
-    txid: string,
-    vout: number
-  ): Promise<RuneUtxoBalance>;
+  getUtxoBalance(rune: string, txid: string, vout: number): Promise<RuneUtxoBalance>;
 }
 
 export type RunestoneIndexerOptions = {
@@ -87,16 +83,28 @@ export type RuneUtxoBalance = {
   amount: bigint;
 };
 
-export type RuneEtching = {
-  rune: string;
-  divisibility: number;
-  spacers: number[];
+export type RuneEtchingSpec = {
+  rune?: string;
+  divisibility?: number;
+  premine?: bigint;
+  spacers?: number[];
   symbol?: string;
-  mint?: {
-    deadline?: number;
-    limit?: bigint;
-    term?: number;
+  terms?: {
+    cap?: bigint;
+    amount?: bigint;
+    offset?: {
+      start?: bigint;
+      end?: bigint;
+    };
+    height?: {
+      start?: bigint;
+      end?: bigint;
+    };
   };
+};
+
+export type RuneEtching = RuneEtchingSpec & {
+  rune: string;
 };
 
 export type RuneMint = {

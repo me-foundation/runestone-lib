@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { U128_MAX_BIGINT, u128 } from '../src/integer/u128';
 import { Rune } from '../src/rune';
-import { Chain } from '../src/chain';
+import { Network } from '../src/network';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from '../src/constants';
 
 describe('rune', () => {
@@ -52,7 +52,7 @@ describe('rune', () => {
 
   test('mainnet minimum at height', () => {
     function testcase(height: number, minimum: string) {
-      expect(Rune.getMinimumAtHeight(Chain.MAINNET, u128(height)).toString()).toEqual(minimum);
+      expect(Rune.getMinimumAtHeight(Network.MAINNET, u128(height)).toString()).toEqual(minimum);
     }
 
     const START = SUBSIDY_HALVING_INTERVAL * 4;
@@ -129,20 +129,20 @@ describe('rune', () => {
   });
 
   test('minimum at height', () => {
-    function testcase(chain: Chain, height: number, minimum: string) {
+    function testcase(chain: Network, height: number, minimum: string) {
       expect(Rune.getMinimumAtHeight(chain, u128(height)).toString()).toEqual(minimum);
     }
 
-    testcase(Chain.TESTNET, 0, 'AAAAAAAAAAAAA');
-    testcase(Chain.TESTNET, SUBSIDY_HALVING_INTERVAL * 12 - 1, 'AAAAAAAAAAAAA');
-    testcase(Chain.TESTNET, SUBSIDY_HALVING_INTERVAL * 12, 'ZZYZXBRKWXVA');
-    testcase(Chain.TESTNET, SUBSIDY_HALVING_INTERVAL * 12 + 1, 'ZZXZUDIVTVQA');
+    testcase(Network.TESTNET, 0, 'AAAAAAAAAAAAA');
+    testcase(Network.TESTNET, SUBSIDY_HALVING_INTERVAL * 12 - 1, 'AAAAAAAAAAAAA');
+    testcase(Network.TESTNET, SUBSIDY_HALVING_INTERVAL * 12, 'ZZYZXBRKWXVA');
+    testcase(Network.TESTNET, SUBSIDY_HALVING_INTERVAL * 12 + 1, 'ZZXZUDIVTVQA');
 
-    testcase(Chain.SIGNET, 0, 'ZZYZXBRKWXVA');
-    testcase(Chain.SIGNET, 1, 'ZZXZUDIVTVQA');
+    testcase(Network.SIGNET, 0, 'ZZYZXBRKWXVA');
+    testcase(Network.SIGNET, 1, 'ZZXZUDIVTVQA');
 
-    testcase(Chain.REGTEST, 0, 'ZZYZXBRKWXVA');
-    testcase(Chain.REGTEST, 1, 'ZZXZUDIVTVQA');
+    testcase(Network.REGTEST, 0, 'ZZYZXBRKWXVA');
+    testcase(Network.REGTEST, 1, 'ZZXZUDIVTVQA');
   });
 
   test('reserved', () => {
