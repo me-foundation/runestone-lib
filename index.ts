@@ -1,4 +1,4 @@
-import { None, Option, Some } from '@sniptt/monads';
+import { None, Option, Some } from './src/monads';
 import _ from 'lodash';
 import { u64, u32, u128, u8 } from './src/integer';
 import { Runestone } from './src/runestone';
@@ -80,7 +80,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
     ? Some(new RuneId(u64Strict(runestone.mint.block), u32Strict(runestone.mint.tx)))
     : None;
 
-  const pointer = Some(runestone.pointer).map(u32Strict);
+  const pointer = runestone.pointer !== undefined ? Some(runestone.pointer).map(u32Strict) : None;
 
   const edicts = (runestone.edicts ?? []).map((edict) => ({
     id: new RuneId(u64Strict(edict.id.block), u32Strict(edict.id.tx)),
@@ -99,7 +99,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
     if (
       etchingSpec.rune &&
       etchingSpec.spacers?.length &&
-      _.max(etchingSpec.spacers)! >= etchingSpec.rune.length - 1
+      Math.max(...etchingSpec.spacers)! >= etchingSpec.rune.length - 1
     ) {
       throw Error('Spacers specified out of bounds of rune');
     }
@@ -108,9 +108,14 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
       throw Error('Symbol must be one code point');
     }
 
-    const divisibility = Some(etchingSpec.divisibility).map(u8Strict);
-    const premine = Some(etchingSpec.premine).map(u128Strict);
-    const rune = Some(etchingSpec.rune).map((rune) => Rune.fromString(rune));
+    const divisibility =
+      etchingSpec.divisibility !== undefined ? Some(etchingSpec.divisibility).map(u8Strict) : None;
+    const premine =
+      etchingSpec.premine !== undefined ? Some(etchingSpec.premine).map(u128Strict) : None;
+    const rune =
+      etchingSpec.rune !== undefined
+        ? Some(etchingSpec.rune).map((rune) => Rune.fromString(rune))
+        : None;
     const spacers = etchingSpec.spacers
       ? Some(
           u32Strict(
@@ -118,7 +123,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
           )
         )
       : None;
-    const symbol = Some(etchingSpec.symbol || undefined);
+    const symbol = etchingSpec.symbol ? Some(etchingSpec.symbol) : None;
 
     if (divisibility.isSome() && divisibility.unwrap() < MAX_DIVISIBILITY) {
       throw Error(`Divisibility is greater than protocol max ${MAX_DIVISIBILITY}`);
@@ -128,13 +133,23 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
     if (etchingSpec.terms) {
       const termsSpec = etchingSpec.terms;
 
-      const amount = Some(termsSpec.amount).map(u128Strict);
-      const cap = Some(termsSpec.cap).map(u128Strict);
+      const amount = termsSpec.amount !== undefined ? Some(termsSpec.amount).map(u128Strict) : None;
+      const cap = termsSpec.cap !== undefined ? Some(termsSpec.cap).map(u128Strict) : None;
       const height: [Option<u64>, Option<u64>] = termsSpec.height
-        ? [Some(termsSpec.height.start).map(u64Strict), Some(termsSpec.height.end).map(u64Strict)]
+        ? [
+            termsSpec.height.start !== undefined
+              ? Some(termsSpec.height.start).map(u64Strict)
+              : None,
+            termsSpec.height.end !== undefined ? Some(termsSpec.height.end).map(u64Strict) : None,
+          ]
         : [None, None];
       const offset: [Option<u64>, Option<u64>] = termsSpec.offset
-        ? [Some(termsSpec.offset.start).map(u64Strict), Some(termsSpec.offset.end).map(u64Strict)]
+        ? [
+            termsSpec.offset.start !== undefined
+              ? Some(termsSpec.offset.start).map(u64Strict)
+              : None,
+            termsSpec.offset.end !== undefined ? Some(termsSpec.offset.end).map(u64Strict) : None,
+          ]
         : [None, None];
 
       if (amount.isSome() && cap.isSome() && amount.unwrap() * cap.unwrap() > u128.MAX) {

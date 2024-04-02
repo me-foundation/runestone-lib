@@ -1,4 +1,4 @@
-import { Option } from '@sniptt/monads';
+import { Option } from './monads';
 import { u128, u64 } from './integer';
 
 export type Terms = {

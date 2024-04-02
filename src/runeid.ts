@@ -1,4 +1,4 @@
-import { None, Option, Some } from '@sniptt/monads';
+import { None, Option, Some } from './monads';
 import _ from 'lodash';
 import { u64, u32, u128 } from './integer';
 
@@ -16,7 +16,7 @@ export class RuneId {
   }
 
   static sort(runeIds: RuneId[]): RuneId[] {
-    return _.sortBy(runeIds, (runeId) => [runeId.block, runeId.tx]);
+    return [...runeIds].sort((x, y) => Number(x.block - y.block || x.tx - y.tx));
   }
 
   delta(next: RuneId): Option<[u128, u128]> {

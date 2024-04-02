@@ -1,4 +1,4 @@
-import { None, Option, Some } from '@sniptt/monads';
+import { None, Option, Some } from './monads';
 import _ from 'lodash';
 import { u128 } from './integer';
 import { FixedArray } from './utils';
@@ -26,7 +26,7 @@ export enum Tag {
 }
 
 export namespace Tag {
-  export function take<N extends number, T>(
+  export function take<N extends number, T extends {}>(
     tag: Tag,
     fields: Map<u128, u128[]>,
     n: N,
@@ -38,7 +38,7 @@ export namespace Tag {
     }
 
     const values: u128[] = [];
-    for (const i of _.range(n)) {
+    for (const i of [...Array(n).keys()]) {
       if (field[i] === undefined) {
         return None;
       }
@@ -61,7 +61,7 @@ export namespace Tag {
 
   export function encode(tag: Tag, values: u128[]): Buffer {
     return Buffer.concat(
-      _.flatten(values.map((value) => [u128.encodeVarInt(u128(tag)), u128.encodeVarInt(value)]))
+      values.map((value) => [u128.encodeVarInt(u128(tag)), u128.encodeVarInt(value)]).flat()
     );
   }
 

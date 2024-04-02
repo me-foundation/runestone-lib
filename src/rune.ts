@@ -113,7 +113,7 @@ export class Rune {
 
   static fromString(s: string) {
     let x = u128(0);
-    for (const i of _.range(s.length)) {
+    for (const i of [...Array(s.length).keys()]) {
       const c = s[i];
 
       if (i > 0) {

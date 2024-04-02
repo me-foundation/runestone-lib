@@ -6,7 +6,7 @@ import { Tag } from './tag';
 import { u128, u32, u64, u8 } from './integer';
 import * as bitcoin from 'bitcoinjs-lib';
 import _ from 'lodash';
-import { Option, Some, None } from '@sniptt/monads';
+import { Option, Some, None } from './monads';
 import { Rune } from './rune';
 import { Flag } from './flag';
 import { Instruction, tryConvertInstructionToBuffer } from './utils';
@@ -244,7 +244,9 @@ export class Runestone {
     if (this.edicts.length) {
       payloads.push(u128.encodeVarInt(u128(Tag.BODY)));
 
-      const edicts = _.sortBy(this.edicts, (edict) => edict.id);
+      const edicts = [...this.edicts].sort((x, y) =>
+        Number(x.id.block - y.id.block || x.id.tx - y.id.tx)
+      );
 
       let previous = new RuneId(u64(0), u32(0));
       for (const edict of edicts) {
@@ -341,13 +343,17 @@ export class Message {
     const fields = new Map<u128, u128[]>();
     let cenotaph = false;
 
-    for (const i of _.range(0, payload.length, 2)) {
+    for (const i of [...Array(Math.ceil(payload.length / 2)).keys()].map((n) => n * 2)) {
       const tag = payload[i];
 
       if (u128(Tag.BODY) === tag) {
         let id = new RuneId(u64(0), u32(0));
-        for (const chunk of _.chunk(payload.slice(i + 1), 4)) {
-          if (chunk.length !== 4) {
+        const chunkSize = 4;
+
+        const body = payload.slice(i + 1);
+        for (let j = 0; j < body.length; j += chunkSize) {
+          const chunk = body.slice(j, j + chunkSize);
+          if (chunk.length !== chunkSize) {
             cenotaph = true;
             break;
           }

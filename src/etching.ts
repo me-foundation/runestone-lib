@@ -1,4 +1,4 @@
-import { None, Option, Some } from '@sniptt/monads';
+import { None, Option, Some } from './monads';
 import { Terms } from './terms';
 import { Rune } from './rune';
 import { u128, u32, u8 } from './integer';
@@ -16,9 +16,7 @@ export class Etching {
   ) {
     this.symbol = symbol.andThen((value) => {
       const codePoint = value.codePointAt(0);
-      return codePoint !== undefined
-        ? Some(String.fromCodePoint(codePoint))
-        : None;
+      return codePoint !== undefined ? Some(String.fromCodePoint(codePoint)) : None;
     });
   }
 }

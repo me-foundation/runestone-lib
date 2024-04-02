@@ -1,4 +1,4 @@
-import { GetBlockParams, RPCClient, Verbosity } from 'rpc-bitcoin';
+import { GetBlockParams, RPCClient } from 'rpc-bitcoin';
 import { RunestoneStorage, RuneBlockIndex, RunestoneIndexerOptions } from './types';
 import { Network } from '../network';
 

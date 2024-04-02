@@ -167,7 +167,7 @@ describe('rune', () => {
     let i = 0;
     while (true) {
       try {
-        const rune = Rune.fromString(_.repeat('A', i + 1));
+        const rune = Rune.fromString('A'.repeat(i + 1));
         expect(rune.value).toBe(Rune.STEPS[i]);
 
         i++;
