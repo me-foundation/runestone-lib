@@ -1,4 +1,4 @@
-import { None, Option, Some } from '@sniptt/monads';
+import { None, Option, Some } from '../monads';
 
 /**
  * A little utility type used for nominal typing.

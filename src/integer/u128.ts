@@ -1,4 +1,4 @@
-import { None, Option, Some } from '@sniptt/monads';
+import { None, Option, Some } from '../monads';
 import { SeekBuffer } from '../seekbuffer';
 import { u64 } from './u64';
 import { u32 } from './u32';

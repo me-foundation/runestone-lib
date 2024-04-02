@@ -2,7 +2,7 @@ import * as bitcoin from 'bitcoinjs-lib';
 import _ from 'lodash';
 import { MAX_SPACERS, Runestone, isValidPayload } from '../src/runestone';
 import { u128, u32, u64, u8 } from '../src/integer';
-import { None, Option, Some } from '@sniptt/monads';
+import { None, Option, Some } from '../src/monads';
 import { Tag } from '../src/tag';
 import { Flag } from '../src/flag';
 import { MAGIC_NUMBER, MAX_DIVISIBILITY } from '../src/constants';
@@ -446,11 +446,6 @@ describe('runestone', () => {
   });
 
   test('decipher_etching_with_all_etching_tags', () => {
-    //       Tag::Flags.into(),
-    //       Flag::Etching.mask() | Flag::Terms.mask(),
-    //       Tag::Rune.into(),
-    //       4,
-
     const runestone = decipher(
       [
         Tag.FLAGS,
@@ -505,65 +500,6 @@ describe('runestone', () => {
     expect(mint.height[1].isNone()).toBe(true);
     expect(mint.cap.unwrap()).toBe(9n);
   });
-
-  // fn decipher_etching_with_all_etching_tags() {
-  //   pretty_assert_eq!(
-  //     decipher(&[
-  //       Tag::Flags.into(),
-  //       Flag::Etching.mask() | Flag::Terms.mask(),
-  //       Tag::Rune.into(),
-  //       4,
-  //       Tag::Divisibility.into(),
-  //       1,
-  //       Tag::Spacers.into(),
-  //       5,
-  //       Tag::Symbol.into(),
-  //       'a'.into(),
-  //       Tag::OffsetEnd.into(),
-  //       2,
-  //       Tag::Amount.into(),
-  //       3,
-  //       Tag::Premine.into(),
-  //       8,
-  //       Tag::Cap.into(),
-  //       9,
-  //       Tag::Pointer.into(),
-  //       0,
-  //       Tag::Mint.into(),
-  //       1,
-  //       Tag::Mint.into(),
-  //       1,
-  //       Tag::Body.into(),
-  //       1,
-  //       1,
-  //       2,
-  //       0,
-  //     ]),
-  //     Runestone {
-  //       edicts: vec![Edict {
-  //         id: rune_id(1),
-  //         amount: 2,
-  //         output: 0n,
-  //       }],
-  //       etching: Some(Etching {
-  //         rune: Some(Rune(4)),
-  //         terms: Some(Terms {
-  //           cap: Some(9),
-  //           offset: (None, Some(2)),
-  //           amount: Some(3),
-  //           height: (None, None),
-  //         }),
-  //         premine: Some(8),
-  //         divisibility: Some(1),
-  //         symbol: Some('a'),
-  //         spacers: Some(5),
-  //       }),
-  //       cenotaph: false,
-  //       pointer: Some(0),
-  //       mint: Some(RuneId::new(1, 1).unwrap()),
-  //     },
-  //   );
-  // }
 
   test('recognized_even_etching_fields_in_non_etching_are_ignored', () => {
     const runestone = decipher(
@@ -988,82 +924,6 @@ describe('runestone', () => {
     }
 
     testcase(new Runestone(false, None, None, [], None), []);
-
-    // case(
-    //   Runestone {
-    //     cenotaph: true,
-    //     edicts: vec![
-    //       Edict {
-    //         id: RuneId::new(2, 3).unwrap(),
-    //         amount: 1,
-    //         output: 0n,
-    //       },
-    //       Edict {
-    //         id: RuneId::new(5, 6).unwrap(),
-    //         amount: 4,
-    //         output: 1,
-    //       },
-    //     ],
-    //     etching: Some(Etching {
-    //       divisibility: Some(7),
-    //       premine: Some(8),
-    //       rune: Some(Rune(9)),
-    //       spacers: Some(10),
-    //       symbol: Some('@'),
-    //       terms: Some(Terms {
-    //         cap: Some(11),
-    //         height: (Some(12), Some(13)),
-    //         amount: Some(14),
-    //         offset: (Some(15), Some(16)),
-    //       }),
-    //     }),
-    //     mint: Some(RuneId::new(17, 18).unwrap()),
-    //     pointer: Some(0),
-    //   },
-    //   &[
-    //     Tag::Flags.into(),
-    //     Flag::Etching.mask() | Flag::Terms.mask(),
-    //     Tag::Rune.into(),
-    //     9,
-    //     Tag::Divisibility.into(),
-    //     7,
-    //     Tag::Spacers.into(),
-    //     10,
-    //     Tag::Symbol.into(),
-    //     '@'.into(),
-    //     Tag::Premine.into(),
-    //     8,
-    //     Tag::Amount.into(),
-    //     14,
-    //     Tag::Cap.into(),
-    //     11,
-    //     Tag::HeightStart.into(),
-    //     12,
-    //     Tag::HeightEnd.into(),
-    //     13,
-    //     Tag::OffsetStart.into(),
-    //     15,
-    //     Tag::OffsetEnd.into(),
-    //     16,
-    //     Tag::Mint.into(),
-    //     17,
-    //     Tag::Mint.into(),
-    //     18,
-    //     Tag::Pointer.into(),
-    //     0,
-    //     Tag::Cenotaph.into(),
-    //     0,
-    //     Tag::Body.into(),
-    //     2,
-    //     3,
-    //     1,
-    //     0,
-    //     3,
-    //     6,
-    //     4,
-    //     1,
-    //   ],
-    // );
 
     testcase(
       new Runestone(

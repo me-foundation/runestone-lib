@@ -1,5 +1,5 @@
 import * as bitcoin from 'bitcoinjs-lib';
-import { Option, Some, None } from '@sniptt/monads';
+import { Option, Some, None } from './monads';
 import { RuneId } from './runeid';
 import { u128, u32 } from './integer';
 
