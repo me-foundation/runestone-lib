@@ -1,40 +1,38 @@
-import * as bitcoin from 'bitcoinjs-lib';
-
-export type Instruction = number | Buffer;
+import { script, opcodes } from './script';
 
 export namespace Instruction {
-  export function isNumber(instruction: Instruction): instruction is number {
+  export function isNumber(instruction: script.Instruction): instruction is number {
     return typeof instruction === 'number';
   }
 
-  export function isBuffer(instruction: Instruction): instruction is Buffer {
+  export function isBuffer(instruction: script.Instruction): instruction is Buffer {
     return typeof instruction !== 'number';
   }
 }
 
-export function tryConvertInstructionToBuffer(instruction: Instruction) {
+export function tryConvertInstructionToBuffer(instruction: script.Instruction) {
   if (Instruction.isNumber(instruction)) {
     switch (instruction) {
-      case bitcoin.opcodes.OP_0:
+      case opcodes.OP_0:
         return Buffer.alloc(0);
-      case bitcoin.opcodes.OP_1:
-      case bitcoin.opcodes.OP_2:
-      case bitcoin.opcodes.OP_3:
-      case bitcoin.opcodes.OP_4:
-      case bitcoin.opcodes.OP_5:
-      case bitcoin.opcodes.OP_6:
-      case bitcoin.opcodes.OP_7:
-      case bitcoin.opcodes.OP_8:
-      case bitcoin.opcodes.OP_9:
-      case bitcoin.opcodes.OP_10:
-      case bitcoin.opcodes.OP_11:
-      case bitcoin.opcodes.OP_12:
-      case bitcoin.opcodes.OP_13:
-      case bitcoin.opcodes.OP_14:
-      case bitcoin.opcodes.OP_15:
-      case bitcoin.opcodes.OP_16:
-        return Buffer.from([instruction - bitcoin.opcodes.OP_1 + 1]);
-      case bitcoin.opcodes.OP_1NEGATE:
+      case opcodes.OP_1:
+      case opcodes.OP_2:
+      case opcodes.OP_3:
+      case opcodes.OP_4:
+      case opcodes.OP_5:
+      case opcodes.OP_6:
+      case opcodes.OP_7:
+      case opcodes.OP_8:
+      case opcodes.OP_9:
+      case opcodes.OP_10:
+      case opcodes.OP_11:
+      case opcodes.OP_12:
+      case opcodes.OP_13:
+      case opcodes.OP_14:
+      case opcodes.OP_15:
+      case opcodes.OP_16:
+        return Buffer.from([instruction - opcodes.OP_1 + 1]);
+      case opcodes.OP_1NEGATE:
         return Buffer.from([0x80]);
       default:
         return instruction;

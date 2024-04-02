@@ -1,5 +1,4 @@
 import { None, Option, Some } from './src/monads';
-import _ from 'lodash';
 import { u64, u32, u128, u8 } from './src/integer';
 import { Runestone } from './src/runestone';
 import { RuneEtchingSpec } from './src/indexer';

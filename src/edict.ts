@@ -1,4 +1,3 @@
-import * as bitcoin from 'bitcoinjs-lib';
 import { Option, Some, None } from './monads';
 import { RuneId } from './runeid';
 import { u128, u32 } from './integer';
@@ -11,7 +10,7 @@ export type Edict = {
 
 export namespace Edict {
   export function fromIntegers(
-    tx: bitcoin.Transaction,
+    numOutputs: number,
     id: RuneId,
     amount: u128,
     output: u128
@@ -26,7 +25,7 @@ export namespace Edict {
     }
     const outputU32 = optionOutputU32.unwrap();
 
-    if (outputU32 > tx.outs.length) {
+    if (outputU32 > numOutputs) {
       return None;
     }
 

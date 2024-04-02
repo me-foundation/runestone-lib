@@ -27,9 +27,5 @@
     "lodash": "^4.17.21",
     "ts-jest": "^29.1.2",
     "typescript": "^5.3.3"
-  },
-  "dependencies": {
-    "bitcoinjs-lib": "^6.1.5",
-    "rpc-bitcoin": "^2.0.0"
   }
 }

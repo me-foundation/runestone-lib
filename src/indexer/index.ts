@@ -1,112 +1,22 @@
-import { GetBlockParams, RPCClient } from 'rpc-bitcoin';
 import { RunestoneStorage, RuneBlockIndex, RunestoneIndexerOptions } from './types';
 import { Network } from '../network';
-
-type Vin = {
-  txid: string;
-  vout: number;
-};
-
-type VinCoinbase = {
-  coinbase: string;
-};
-
-type Vout = {
-  value: number;
-  n: number;
-  scriptPubKey: {
-    asm: string;
-    desc: string;
-    hex: string;
-    type: string;
-    address?: string;
-  };
-};
-
-type Tx = {
-  txid: string;
-  hash: string;
-  version: number;
-  size: number;
-  vsize: number;
-  weight: number;
-  locktime: number;
-  vin: (Vin | VinCoinbase)[];
-  vout: Vout[];
-};
-
-type BitcoinBlock = {
-  hash: string;
-  confirmations: number;
-  size: number;
-  strippedsize: number;
-  weight: number;
-  height: number;
-  version: number;
-  versionHex: string;
-  merkleroot: string;
-  time: number;
-  mediantime: number;
-  nonce: number;
-  bits: string;
-  difficulty: number;
-  chainwork: string;
-  nTx: number;
-  previousblockhash: string;
-};
-
-type GetBlockReturn<T> = T extends { verbosity: 0 }
-  ? string
-  : T extends { verbosity: 1 }
-  ? { tx: string[] } & BitcoinBlock
-  : T extends { verbosity: 2 }
-  ? { tx: Tx[] } & BitcoinBlock
-  : { tx: string[] } & BitcoinBlock;
-
-class BitcoinRpcClient {
-  constructor(private readonly _rpc: RPCClient) {}
-
-  getbestblockhash(): Promise<string> {
-    return this._rpc.getbestblockhash();
-  }
-
-  async getblockchaintype(): Promise<Network> {
-    const { chain } = await this._rpc.getblockchaininfo();
-    switch (chain) {
-      case 'main':
-        return Network.MAINNET;
-      case 'test':
-        return Network.TESTNET;
-      case 'signet':
-        return Network.SIGNET;
-      case 'regtest':
-        return Network.REGTEST;
-      default:
-        return Network.MAINNET;
-    }
-  }
-
-  getblock<T extends GetBlockParams>({ verbosity, blockhash }: T): Promise<GetBlockReturn<T>> {
-    return this._rpc.getblock({ verbosity, blockhash });
-  }
-}
+import { BitcoinRpcClient } from '../rpcclient';
 
 export * from './types';
 
 export class RunestoneIndexer {
   private readonly _storage: RunestoneStorage;
   private readonly _rpc: BitcoinRpcClient;
+  private readonly _network: Network;
   private readonly _pollIntervalMs: number;
 
-  private _started: boolean;
-  private _chain: Network;
+  private _started: boolean = false;
   private _intervalId: NodeJS.Timeout | null = null;
 
   constructor(options: RunestoneIndexerOptions) {
-    this._rpc = new BitcoinRpcClient(new RPCClient(options.bitcoinRpc));
+    this._rpc = options.bitcoinRpcClient;
     this._storage = options.storage;
-    this._started = false;
-    this._chain = Network.MAINNET;
+    this._network = options.network;
     this._pollIntervalMs = Math.max(options.pollIntervalMs ?? 10000, 1);
   }
 
@@ -118,8 +28,6 @@ export class RunestoneIndexer {
     await this._storage.connect();
 
     this._started = true;
-
-    this._chain = await this._rpc.getblockchaintype();
 
     this._intervalId = setInterval(() => this.updateRuneUtxoBalances(), this._pollIntervalMs);
   }
@@ -183,7 +91,7 @@ export class RunestoneIndexer {
         await this._storage.resetCurrentBlock(rpcBlock);
       }
     } else {
-      const firstRuneHeight = Network.getFirstRuneHeight(this._chain);
+      const firstRuneHeight = Network.getFirstRuneHeight(this._network);
 
       // Iterate through the rpc blocks until we reach first rune height
       const bestblockhash: string = await this._rpc.getbestblockhash();
