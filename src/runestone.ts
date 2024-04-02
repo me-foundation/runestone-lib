@@ -1,18 +1,19 @@
-import { MAGIC_NUMBER, MAX_DIVISIBILITY, MAX_SCRIPT_ELEMENT_SIZE } from './constants';
+import { MAGIC_NUMBER, MAX_DIVISIBILITY, MAX_SCRIPT_ELEMENT_SIZE, OP_RETURN } from './constants';
 import { Edict } from './edict';
 import { Etching } from './etching';
 import { SeekBuffer } from './seekbuffer';
 import { Tag } from './tag';
 import { u128, u32, u64, u8 } from './integer';
-import * as bitcoin from 'bitcoinjs-lib';
-import _ from 'lodash';
 import { Option, Some, None } from './monads';
 import { Rune } from './rune';
 import { Flag } from './flag';
 import { Instruction, tryConvertInstructionToBuffer } from './utils';
 import { RuneId } from './runeid';
+import { script } from './script';
 
 export const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
+
+type RunestoneTx = { vout: { scriptPubKey: { hex: string } }[] };
 
 type ValidPayload = Buffer;
 
@@ -36,7 +37,7 @@ export class Runestone {
     readonly etching: Option<Etching>
   ) {}
 
-  static fromTransaction(transaction: bitcoin.Transaction): Option<Runestone> {
+  static fromTransaction(transaction: RunestoneTx): Option<Runestone> {
     try {
       return Runestone.decipher(transaction);
     } catch (e) {
@@ -48,7 +49,7 @@ export class Runestone {
     return new Runestone(true, None, None, [], None);
   }
 
-  static decipher(transaction: bitcoin.Transaction): Option<Runestone> {
+  static decipher(transaction: RunestoneTx): Option<Runestone> {
     const optionPayload = Runestone.payload(transaction);
     if (optionPayload.isNone()) {
       return None;
@@ -63,7 +64,10 @@ export class Runestone {
       return Some(Runestone.cenotaph());
     }
 
-    const { cenotaph, edicts, fields } = Message.fromIntegers(transaction, optionIntegers.unwrap());
+    const { cenotaph, edicts, fields } = Message.fromIntegers(
+      transaction.vout.length,
+      optionIntegers.unwrap()
+    );
 
     const mint = Tag.take(Tag.MINT, fields, 2, ([block, tx]): Option<RuneId> => {
       const optionBlockU64 = u128.tryIntoU64(block);
@@ -83,7 +87,7 @@ export class Runestone {
       ([value]): Option<u32> =>
         u128
           .tryIntoU32(value)
-          .andThen((value) => (value < transaction.outs.length ? Some(value) : None))
+          .andThen((value) => (value < transaction.vout.length ? Some(value) : None))
     );
 
     const divisibility = Tag.take(
@@ -260,8 +264,8 @@ export class Runestone {
       }
     }
 
-    const stack: bitcoin.Stack = [];
-    stack.push(bitcoin.opcodes.OP_RETURN);
+    const stack: (Buffer | number)[] = [];
+    stack.push(OP_RETURN);
     stack.push(MAGIC_NUMBER);
 
     const payload = Buffer.concat(payloads);
@@ -270,29 +274,29 @@ export class Runestone {
       stack.push(payload.subarray(i, i + MAX_SCRIPT_ELEMENT_SIZE));
     }
 
-    return bitcoin.script.compile(stack);
+    return script.compile(stack);
   }
 
-  static payload(transaction: bitcoin.Transaction): Option<Payload> {
+  static payload(transaction: RunestoneTx): Option<Payload> {
     // search transaction outputs for payload
-    for (const output of transaction.outs) {
-      const instructions = bitcoin.script.decompile(output.script);
+    for (const output of transaction.vout) {
+      const instructions = script.decompile(Buffer.from(output.scriptPubKey.hex, 'hex'));
       if (instructions === null) {
         throw new Error('unable to decompile');
       }
 
       // payload starts with OP_RETURN
-      let nextInstruction: Instruction | undefined = instructions.shift();
-      if (nextInstruction !== bitcoin.opcodes.OP_RETURN) {
+      let nextInstructionResult = instructions.next();
+      if (nextInstructionResult.done || nextInstructionResult.value !== OP_RETURN) {
         continue;
       }
 
       // followed by the protocol identifier
-      nextInstruction = instructions.shift();
+      nextInstructionResult = instructions.next();
       if (
-        !nextInstruction ||
-        Instruction.isBuffer(nextInstruction) ||
-        nextInstruction !== MAGIC_NUMBER
+        nextInstructionResult.done ||
+        Instruction.isBuffer(nextInstructionResult.value) ||
+        nextInstructionResult.value !== MAGIC_NUMBER
       ) {
         continue;
       }
@@ -300,14 +304,25 @@ export class Runestone {
       // construct the payload by concatinating remaining data pushes
       let payloads: Buffer[] = [];
 
-      for (const instruction of instructions) {
+      do {
+        nextInstructionResult = instructions.next();
+
+        if (nextInstructionResult.done) {
+          const decodedSuccessfully = nextInstructionResult.value;
+          if (!decodedSuccessfully) {
+            return Some(InvalidPayload.INSTANCE);
+          }
+          break;
+        }
+
+        const instruction = nextInstructionResult.value;
         const result = tryConvertInstructionToBuffer(instruction);
         if (Instruction.isBuffer(result)) {
           payloads.push(result);
         } else {
           return Some(InvalidPayload.INSTANCE);
         }
-      }
+      } while (true);
 
       return Some(Buffer.concat(payloads));
     }
@@ -338,7 +353,7 @@ export class Message {
     readonly fields: Map<u128, u128[]>
   ) {}
 
-  static fromIntegers(tx: bitcoin.Transaction, payload: u128[]): Message {
+  static fromIntegers(numOutputs: number, payload: u128[]): Message {
     const edicts: Edict[] = [];
     const fields = new Map<u128, u128[]>();
     let cenotaph = false;
@@ -365,7 +380,7 @@ export class Message {
           }
           const next = optionNext.unwrap();
 
-          const optionEdict = Edict.fromIntegers(tx, next, chunk[2], chunk[3]);
+          const optionEdict = Edict.fromIntegers(numOutputs, next, chunk[2], chunk[3]);
           if (optionEdict.isNone()) {
             cenotaph = true;
             break;

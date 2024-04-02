@@ -1,7 +1,6 @@
 import { Network } from './network';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from './constants';
 import { u128, u32 } from './integer';
-import _ from 'lodash';
 
 export class Rune {
   static readonly STEPS = [

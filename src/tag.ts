@@ -1,5 +1,4 @@
 import { None, Option, Some } from './monads';
-import _ from 'lodash';
 import { u128 } from './integer';
 import { FixedArray } from './utils';
 

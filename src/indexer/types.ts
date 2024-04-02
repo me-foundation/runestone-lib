@@ -1,3 +1,6 @@
+import { Network } from '../network';
+import { BitcoinRpcClient } from '../rpcclient';
+
 export interface RunestoneStorage {
   /**
    * Connect to the storage backend, called at indexer startup.
@@ -55,13 +58,12 @@ export interface RunestoneStorage {
 }
 
 export type RunestoneIndexerOptions = {
-  bitcoinRpc: {
-    url: string;
-    user: string;
-    pass: string;
-    port: number;
-  };
+  bitcoinRpcClient: BitcoinRpcClient;
+
+  network: Network;
+
   storage: RunestoneStorage;
+
   /**
    * The interval at which to poll the RPC for new blocks, in milliseconds.
    * Defaults to `10000` (10 seconds), and must be positive.

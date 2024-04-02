@@ -1,5 +1,4 @@
 import { None, Option, Some } from './monads';
-import _ from 'lodash';
 import { u64, u32, u128 } from './integer';
 
 export class RuneId {
