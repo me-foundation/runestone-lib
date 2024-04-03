@@ -1,6 +1,6 @@
 import { Network } from './network';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from './constants';
-import { u128, u32 } from './integer';
+import { u128, u32, u64 } from './integer';
 
 export class Rune {
   static readonly STEPS = [
@@ -89,8 +89,8 @@ export class Rune {
     return bytes.subarray(0, end);
   }
 
-  static getReserved(n: u128): Rune {
-    return new Rune(u128.checkedAdd(RESERVED, n).unwrap());
+  static getReserved(block: u64, tx: u32): Rune {
+    return new Rune(u128.checkedAdd(RESERVED, u128((block << 32n) | tx)).unwrap());
   }
 
   toString() {

@@ -158,8 +158,8 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
       terms = Some({ amount, cap, height, offset });
     }
 
-    etching = Some({ divisibility, premine, rune, spacers, symbol, terms });
+    etching = Some(new Etching(divisibility, rune, spacers, symbol, terms, premine));
   }
 
-  return new Runestone(false, mint, pointer, edicts, etching).encipher();
+  return new Runestone(mint, pointer, edicts, etching).encipher();
 }

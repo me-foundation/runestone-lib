@@ -19,4 +19,14 @@ export class Etching {
       return codePoint !== undefined ? Some(String.fromCodePoint(codePoint)) : None;
     });
   }
+
+  get supply(): Option<u128> {
+    const premine = this.premine.unwrapOr(u128(0));
+    const cap = this.terms.andThen((terms) => terms.cap).unwrapOr(u128(0));
+    const amount = this.terms.andThen((terms) => terms.amount).unwrapOr(u128(0));
+
+    return u128
+      .checkedMultiply(cap, amount)
+      .andThen((multiplyResult) => u128.checkedAdd(premine, multiplyResult));
+  }
 }
