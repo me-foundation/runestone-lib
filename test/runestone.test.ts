@@ -11,6 +11,8 @@ import { Edict } from '../src/edict';
 import { Etching } from '../src/etching';
 import { RuneId } from '../src/runeid';
 import { opcodes, script } from '../src/script';
+import { Artifact, isRunestone } from '../src/artifact';
+import { Flaw } from '../src/flaw';
 
 type RunestoneTx = { vout: { scriptPubKey: { hex: string } }[] };
 
@@ -19,7 +21,7 @@ function createRuneId(tx: number) {
 }
 
 describe('runestone', () => {
-  function decipher(integers: u128[]): Runestone {
+  function decipher(integers: u128[]): Artifact {
     return Runestone.decipher(
       getSimpleTransaction([opcodes.OP_RETURN, MAGIC_NUMBER, getPayload(integers)])
     ).unwrap();
@@ -42,7 +44,7 @@ describe('runestone', () => {
   }
 
   test('from_transaction_returns_none_if_decipher_returns_error', () => {
-    expect(Runestone.fromTransaction(getSimpleTransaction([4])).isNone()).toBe(true);
+    expect(Runestone.decipher(getSimpleTransaction([4])).isNone()).toBe(true);
   });
 
   test('deciphering_transaction_with_no_outputs_returns_none', () => {
@@ -87,43 +89,44 @@ describe('runestone', () => {
   });
 
   test('outputs_with_non_pushdata_opcodes_are_cenotaph', () => {
-    expect(
-      Runestone.decipher({
-        vout: [
-          {
-            scriptPubKey: {
-              hex: script
-                .compile([
-                  opcodes.OP_RETURN,
-                  MAGIC_NUMBER,
-                  opcodes.OP_VERIFY,
-                  Buffer.from([0]),
-                  u128.encodeVarInt(u128(1)),
-                  u128.encodeVarInt(u128(1)),
-                  Buffer.from([2, 0]),
-                ])
-                .toString('hex'),
-            },
+    const cenotaph = Runestone.decipher({
+      vout: [
+        {
+          scriptPubKey: {
+            hex: script
+              .compile([
+                opcodes.OP_RETURN,
+                MAGIC_NUMBER,
+                opcodes.OP_VERIFY,
+                Buffer.from([0]),
+                u128.encodeVarInt(u128(1)),
+                u128.encodeVarInt(u128(1)),
+                Buffer.from([2, 0]),
+              ])
+              .toString('hex'),
           },
-          {
-            scriptPubKey: {
-              hex: script
-                .compile([
-                  opcodes.OP_RETURN,
-                  MAGIC_NUMBER,
-                  Buffer.from([0]),
-                  u128.encodeVarInt(u128(1)),
-                  u128.encodeVarInt(u128(1)),
-                  Buffer.from([3, 0]),
-                ])
-                .toString('hex'),
-            },
+        },
+        {
+          scriptPubKey: {
+            hex: script
+              .compile([
+                opcodes.OP_RETURN,
+                MAGIC_NUMBER,
+                Buffer.from([0]),
+                u128.encodeVarInt(u128(1)),
+                u128.encodeVarInt(u128(1)),
+                Buffer.from([3, 0]),
+              ])
+              .toString('hex'),
           },
-        ],
-      }).unwrap()
-    ).toMatchObject({
-      cenotaph: true,
-    });
+        },
+      ],
+    }).unwrap();
+
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+    expect(cenotaph.flaws).toEqual([Flaw.OPCODE]);
   });
 
   test('deciphering_empty_runestone_is_successful', () => {
@@ -169,6 +172,10 @@ describe('runestone', () => {
       [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.BODY, 1, 1, 2, 0].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
+
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -184,6 +191,10 @@ describe('runestone', () => {
       [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, 4, Tag.BODY, 1, 1, 2, 0].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
+
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -194,12 +205,16 @@ describe('runestone', () => {
     expect(etching.terms.isNone()).toBe(true);
   });
 
-  test('etch_flag_is_required_to_etch_rune_even_if_mint_is_set', () => {
+  test('etching_flag_is_required_to_etch_rune_even_if_terms_is_set', () => {
     const runestone = decipher(
       [Tag.FLAGS, Flag.mask(Flag.TERMS), Tag.OFFSET_END, 4, Tag.BODY, 1, 1, 2, 0].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
+    if (isRunestone(runestone)) {
+      throw Error;
+    }
+
+    expect(runestone.flaws).toEqual([Flaw.UNRECOGNIZED_FLAG, Flaw.UNRECOGNIZED_EVEN_TAG]);
     expect(runestone.etching.isNone()).toBe(true);
   });
 
@@ -217,6 +232,10 @@ describe('runestone', () => {
         0,
       ].map(u128)
     );
+
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
 
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
@@ -250,6 +269,10 @@ describe('runestone', () => {
       ].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
+
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -268,11 +291,15 @@ describe('runestone', () => {
   });
 
   test('invalid_varint_produces_cenotaph', () => {
-    expect(
-      Runestone.decipher(
-        getSimpleTransaction([opcodes.OP_RETURN, MAGIC_NUMBER, Buffer.from([128])])
-      ).unwrap()
-    ).toMatchObject({ cenotaph: true });
+    const cenotaph = Runestone.decipher(
+      getSimpleTransaction([opcodes.OP_RETURN, MAGIC_NUMBER, Buffer.from([128])])
+    ).unwrap();
+
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+
+    expect(cenotaph.flaws).toEqual([Flaw.VARINT]);
   });
 
   test('duplicate_even_tags_produce_cenotaph', () => {
@@ -280,15 +307,11 @@ describe('runestone', () => {
       [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, 4, Tag.RUNE, 5, Tag.BODY, 1, 1, 2, 0].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
-    expect(runestone.cenotaph).toBe(true);
+    if (isRunestone(runestone)) {
+      throw Error;
+    }
 
-    const etching = runestone.etching.unwrap();
-    expect(etching.divisibility.isNone()).toBe(true);
-    expect(etching.rune.unwrap().value).toBe(4n);
-    expect(etching.spacers.isNone()).toBe(true);
-    expect(etching.symbol.isNone()).toBe(true);
-    expect(etching.terms.isNone()).toBe(true);
+    expect(runestone.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
   });
 
   test('duplicate_odd_tags_are_ignored', () => {
@@ -308,44 +331,64 @@ describe('runestone', () => {
       ].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
+
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
     expect(runestone.etching.unwrap().divisibility.unwrap()).toBe(4n);
   });
 
   test('runestone_with_unrecognized_even_tag_is_cenotaph', () => {
-    const runestone = decipher([Tag.CENOTAPH, 0, Tag.BODY, 1, 1, 2, 0].map(u128));
+    const cenotaph = decipher([Tag.CENOTAPH, 0, Tag.BODY, 1, 1, 2, 0].map(u128));
 
-    expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
-    expect(runestone.cenotaph).toBe(true);
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+
+    expect(cenotaph.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
   });
 
   test('runestone_with_unrecognized_flag_is_cenotaph', () => {
-    const runestone = decipher(
+    const cenotaph = decipher(
       [Tag.FLAGS, Flag.mask(Flag.CENOTAPH), Tag.BODY, 1, 1, 2, 0].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
-    expect(runestone.cenotaph).toBe(true);
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+
+    expect(cenotaph.flaws).toEqual([Flaw.UNRECOGNIZED_FLAG]);
   });
 
   test('runestone_with_edict_id_with_zero_block_and_nonzero_tx_is_cenotaph', () => {
-    const runestone = decipher([Tag.BODY, 0, 1, 2, 0].map(u128));
+    const cenotaph = decipher([Tag.BODY, 0, 1, 2, 0].map(u128));
 
-    expect(runestone.edicts).toEqual([]);
-    expect(runestone.cenotaph).toBe(true);
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+
+    expect(cenotaph.flaws).toEqual([Flaw.EDICT_RUNE_ID]);
   });
 
   test('runestone_with_output_over_max_is_cenotaph', () => {
-    const runestone = decipher([Tag.BODY, 1, 1, 2, 2].map(u128));
+    const cenotaph = decipher([Tag.BODY, 1, 1, 2, 2].map(u128));
 
-    expect(runestone.edicts).toEqual([]);
-    expect(runestone.cenotaph).toBe(true);
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+
+    expect(cenotaph.flaws).toEqual([Flaw.EDICT_OUTPUT]);
   });
 
-  test('tag_with_no_value_is_ignored', () => {
-    const runestone = decipher([Tag.FLAGS, 1, Tag.BODY, Tag.FLAGS].map(u128));
+  test('tag_with_no_value_is_cenotaph', () => {
+    const runestone = decipher([Tag.FLAGS, 1, Tag.FLAGS].map(u128));
 
-    expect(runestone.etching.isSome()).toBe(true);
+    if (isRunestone(runestone)) {
+      throw Error;
+    }
+
+    expect(runestone.flaws).toEqual([Flaw.TRUNCATED_FIELD]);
   });
 
   test('trailing_integers_in_body_is_cenotaph', () => {
@@ -354,10 +397,12 @@ describe('runestone', () => {
     for (const i of _.range(4)) {
       const runestone = decipher(integers.map(u128));
       if (i === 0) {
+        if (!isRunestone(runestone)) {
+          throw Error;
+        }
         expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
-        expect(runestone.cenotaph).toBe(false);
       } else {
-        expect(runestone.cenotaph).toBe(true);
+        expect(isRunestone(runestone)).toBe(false);
       }
 
       integers.push(0);
@@ -381,6 +426,9 @@ describe('runestone', () => {
       ].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -408,6 +456,9 @@ describe('runestone', () => {
       ].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -435,6 +486,9 @@ describe('runestone', () => {
       ].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -452,6 +506,9 @@ describe('runestone', () => {
       )
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -497,8 +554,10 @@ describe('runestone', () => {
       ].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
-    expect(runestone.cenotaph).toBe(false);
     expect(runestone.pointer.unwrap()).toBe(0n);
     expect(runestone.mint.unwrap()).toEqual(new RuneId(u64(1), u32(1)));
 
@@ -518,7 +577,7 @@ describe('runestone', () => {
     expect(mint.cap.unwrap()).toBe(9n);
   });
 
-  test('recognized_even_etching_fields_in_non_etching_are_ignored', () => {
+  test('recognized_even_etching_fields_in_non_etching_is_cenotaph', () => {
     const runestone = decipher(
       [
         Tag.RUNE,
@@ -541,8 +600,10 @@ describe('runestone', () => {
       ].map(u128)
     );
 
-    expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
-    expect(runestone.etching.isNone()).toBe(true);
+    if (isRunestone(runestone)) {
+      throw Error;
+    }
+    expect(runestone.flaws).toEqual([Flaw.TRAILING_INTEGERS, Flaw.UNRECOGNIZED_EVEN_TAG]);
   });
 
   test('decipher_etching_with_divisibility_and_symbol', () => {
@@ -564,6 +625,9 @@ describe('runestone', () => {
       ].map(u128)
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
     const etching = runestone.etching.unwrap();
@@ -580,12 +644,20 @@ describe('runestone', () => {
       )
     );
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
+
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
     expect(runestone.etching.isSome()).toBe(true);
   });
 
   test('runestone_may_contain_multiple_edicts', () => {
     const runestone = decipher([Tag.BODY, 1, 1, 2, 0, 0, 3, 5, 0].map(u128));
+
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
 
     expect(runestone.edicts).toEqual([
       { id: createRuneId(1), amount: 2n, output: 0n },
@@ -594,17 +666,19 @@ describe('runestone', () => {
   });
 
   test('runestones_with_invalid_rune_id_blocks_are_cenotaph', () => {
-    expect(decipher([Tag.BODY, 1, 1, 2, 0, u128.MAX, 1, 0, 0].map(u128))).toMatchObject({
-      edicts: [{ id: createRuneId(1), amount: 2n, output: 0n }],
-      cenotaph: true,
-    });
+    const cenotaph = decipher([Tag.BODY, 1, 1, 2, 0, u128.MAX, 1, 0, 0].map(u128));
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+    expect(cenotaph.flaws).toEqual([Flaw.EDICT_RUNE_ID]);
   });
 
   test('runestones_with_invalid_rune_id_txs_are_cenotaph', () => {
-    expect(decipher([Tag.BODY, 1, 1, 2, 0, 1, u128.MAX, 0, 0].map(u128))).toMatchObject({
-      edicts: [{ id: createRuneId(1), amount: 2n, output: 0n }],
-      cenotaph: true,
-    });
+    const cenotaph = decipher([Tag.BODY, 1, 1, 2, 0, 1, u128.MAX, 0, 0].map(u128));
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+    expect(cenotaph.flaws).toEqual([Flaw.EDICT_RUNE_ID]);
   });
 
   test('payload_pushes_are_concatenated', () => {
@@ -623,6 +697,10 @@ describe('runestone', () => {
         u128.encodeVarInt(u128(0)),
       ])
     ).unwrap();
+
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
 
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
 
@@ -649,6 +727,9 @@ describe('runestone', () => {
 
     const runestone = Runestone.decipher(transaction).unwrap();
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
   });
 
@@ -672,12 +753,15 @@ describe('runestone', () => {
 
     const runestone = Runestone.decipher(transaction).unwrap();
 
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
     expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
   });
 
   test('runestone_size', () => {
     function testcase(edicts: Edict[], etching: Option<Etching>, size: number) {
-      expect(new Runestone(false, None, None, edicts, etching).encipher().length).toBe(size);
+      expect(new Runestone(None, None, edicts, etching).encipher().length).toBe(size);
     }
 
     testcase([], None, 2);
@@ -840,16 +924,7 @@ describe('runestone', () => {
     );
   });
 
-  test('etching_with_term_greater_than_maximum_is_still_an_etching', () => {
-    {
-      const runestone = decipher(
-        [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.OFFSET_END, 0xffff_ffff_ffff_ffffn + 1n].map(u128)
-      );
-
-      expect(runestone.cenotaph).toBe(true);
-      expect(runestone.etching.isSome()).toBe(true);
-    }
-
+  test('etching_with_term_greater_than_maximum_is_cenotaph', () => {
     {
       const runestone = decipher(
         [
@@ -860,9 +935,11 @@ describe('runestone', () => {
         ].map(u128)
       );
 
-      const etching = runestone.etching.unwrap();
-      const mint = etching.terms.unwrap();
-      expect(mint.offset[1].isNone()).toBe(true);
+      if (isRunestone(runestone)) {
+        throw Error;
+      }
+
+      expect(runestone.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
     }
   });
 
@@ -879,9 +956,12 @@ describe('runestone', () => {
 
       expect(Runestone.integers(payload as Buffer).unwrap()).toEqual(expected.map(u128));
 
-      const txnRunestone = Runestone.fromTransaction(transaction).unwrap();
+      const txnRunestone = Runestone.decipher(transaction).unwrap();
 
-      expect(txnRunestone.cenotaph).toBe(runestone.cenotaph);
+      if (!isRunestone(txnRunestone)) {
+        throw Error;
+      }
+
       expect(txnRunestone.mint.isSome()).toBe(runestone.mint.isSome());
       if (txnRunestone.mint.isSome()) {
         expect(txnRunestone.mint.unwrap()).toEqual(runestone.mint.unwrap());
@@ -948,11 +1028,10 @@ describe('runestone', () => {
       }
     }
 
-    testcase(new Runestone(false, None, None, [], None), []);
+    testcase(new Runestone(None, None, [], None), []);
 
     testcase(
       new Runestone(
-        true,
         Some(new RuneId(u64(17), u32(18))),
         Some(u32(0)),
         [
@@ -1014,8 +1093,6 @@ describe('runestone', () => {
         18,
         Tag.POINTER,
         0,
-        Tag.CENOTAPH,
-        0,
         Tag.BODY,
         2,
         3,
@@ -1030,7 +1107,6 @@ describe('runestone', () => {
 
     testcase(
       new Runestone(
-        false,
         None,
         None,
         [],
@@ -1039,18 +1115,15 @@ describe('runestone', () => {
       [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, 3]
     );
 
-    testcase(
-      new Runestone(false, None, None, [], Some(new Etching(None, None, None, None, None, None))),
-      [Tag.FLAGS, Flag.mask(Flag.ETCHING)]
-    );
-
-    testcase(new Runestone(true, None, None, [], None), [Tag.CENOTAPH, 0]);
+    testcase(new Runestone(None, None, [], Some(new Etching(None, None, None, None, None, None))), [
+      Tag.FLAGS,
+      Flag.mask(Flag.ETCHING),
+    ]);
   });
 
   test('runestone_payload_is_chunked', () => {
     {
       const encodedRunestone = new Runestone(
-        false,
         None,
         None,
         _.range(129).map((i) => ({
@@ -1067,7 +1140,6 @@ describe('runestone', () => {
 
     {
       const encodedRunestone = new Runestone(
-        false,
         None,
         None,
         _.range(130).map((i) => ({
@@ -1099,82 +1171,158 @@ describe('runestone', () => {
   });
 
   test('edict_output_greater_than_32_max_produces_cenotaph', () => {
-    expect(decipher([Tag.BODY, 1, 1, 1, u32.MAX + 1n].map(u128)).cenotaph).toBe(true);
+    const cenotaph = decipher([Tag.BODY, 1, 1, 1, u32.MAX + 1n].map(u128));
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+    expect(cenotaph.flaws).toEqual([Flaw.EDICT_OUTPUT]);
   });
 
   test('partial_mint_produces_cenotaph', () => {
-    expect(decipher([Tag.MINT, 1].map(u128)).cenotaph).toBe(true);
+    const cenotaph = decipher([Tag.MINT, 1].map(u128));
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+    expect(cenotaph.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
   });
 
   test('invalid_mint_produces_cenotaph', () => {
-    expect(decipher([Tag.MINT, 0, Tag.MINT, 1].map(u128)).cenotaph).toBe(true);
+    const cenotaph = decipher([Tag.MINT, 0, Tag.MINT, 1].map(u128));
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+    expect(cenotaph.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
   });
 
   test('invalid_deadline_produces_cenotaph', () => {
-    expect(decipher([Tag.OFFSET_END, u128.MAX].map(u128)).cenotaph).toBe(true);
+    const cenotaph = decipher([Tag.OFFSET_END, u128.MAX].map(u128));
+    if (isRunestone(cenotaph)) {
+      throw Error;
+    }
+    expect(cenotaph.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
   });
 
-  test('invalid_deadline_produces_cenotaph', () => {
-    expect(decipher([Tag.POINTER, 1].map(u128)).cenotaph).toBe(true);
-    expect(decipher([Tag.POINTER, u128.MAX].map(u128)).cenotaph).toBe(true);
+  test('invalid_pointer_produces_cenotaph', () => {
+    {
+      const cenotaph = decipher([Tag.POINTER, 1].map(u128));
+      if (isRunestone(cenotaph)) {
+        throw Error;
+      }
+      expect(cenotaph.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
+    }
+
+    {
+      const cenotaph = decipher([Tag.POINTER, u128.MAX].map(u128));
+      if (isRunestone(cenotaph)) {
+        throw Error;
+      }
+      expect(cenotaph.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
+    }
   });
 
   test('invalid_divisibility_does_not_produce_cenotaph', () => {
-    expect(decipher([Tag.DIVISIBILITY, u128.MAX].map(u128)).cenotaph).toBe(false);
+    const runestone = decipher([Tag.DIVISIBILITY, u128.MAX].map(u128));
+    if (!isRunestone(runestone)) {
+      throw Error;
+    }
   });
 
   test('min_and_max_runes_are_not_cenotaphs', () => {
-    expect(decipher([Tag.RUNE, 0].map(u128)).cenotaph).toBe(false);
-    expect(decipher([Tag.RUNE, u128.MAX].map(u128)).cenotaph).toBe(false);
+    {
+      const runestone = decipher([Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, 0].map(u128));
+
+      expect(isRunestone(runestone)).toEqual(true);
+    }
+
+    {
+      const runestone = decipher(
+        [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, u128.MAX].map(u128)
+      );
+
+      expect(isRunestone(runestone)).toEqual(true);
+    }
   });
 
   test('invalid_spacers_does_not_produce_cenotaph', () => {
-    expect(decipher([Tag.SPACERS, u128.MAX].map(u128)).cenotaph).toBe(false);
+    const runestone = decipher([Tag.SPACERS, u128.MAX].map(u128));
+
+    expect(isRunestone(runestone)).toEqual(true);
   });
 
   test('invalid_symbol_does_not_produce_cenotaph', () => {
-    expect(decipher([Tag.SYMBOL, u128.MAX].map(u128)).cenotaph).toBe(false);
+    const runestone = decipher([Tag.SYMBOL, u128.MAX].map(u128));
+
+    expect(isRunestone(runestone)).toEqual(true);
   });
 
   test('invalid_term_produces_cenotaph', () => {
-    expect(decipher([Tag.OFFSET_END, u128.MAX].map(u128)).cenotaph).toBe(true);
+    const runestone = decipher([Tag.OFFSET_END, u128.MAX].map(u128));
+
+    expect(isRunestone(runestone)).toEqual(false);
+    if (isRunestone(runestone)) {
+      throw Error;
+    }
+    expect(runestone.flaws).toEqual([Flaw.UNRECOGNIZED_EVEN_TAG]);
   });
 
   test('invalid_supply_produces_cenotaph', () => {
-    expect(
-      decipher(
-        [Tag.FLAGS, Flag.mask(Flag.ETCHING | Flag.TERMS), Tag.CAP, 1, Tag.AMOUNT, u128.MAX].map(
-          u128
-        )
-      ).cenotaph
-    ).toBe(false);
-
-    expect(
-      decipher(
-        [Tag.FLAGS, Flag.mask(Flag.ETCHING | Flag.TERMS), Tag.CAP, 2, Tag.AMOUNT, u128.MAX].map(
-          u128
-        )
-      ).cenotaph
-    ).toBe(true);
-
-    expect(
-      decipher(
+    {
+      const runestone = decipher(
         [
           Tag.FLAGS,
-          Flag.mask(Flag.ETCHING | Flag.TERMS),
+          Flag.mask(Flag.ETCHING) | Flag.mask(Flag.TERMS),
+          Tag.CAP,
+          1,
+          Tag.AMOUNT,
+          u128.MAX,
+        ].map(u128)
+      );
+
+      expect(isRunestone(runestone)).toBe(true);
+      if (!isRunestone(runestone)) {
+        throw Error;
+      }
+    }
+
+    {
+      const cenotaph = decipher(
+        [
+          Tag.FLAGS,
+          Flag.mask(Flag.ETCHING) | Flag.mask(Flag.TERMS),
+          Tag.CAP,
+          2,
+          Tag.AMOUNT,
+          u128.MAX,
+        ].map(u128)
+      );
+      if (isRunestone(cenotaph)) {
+        throw Error;
+      }
+      expect(cenotaph.flaws).toEqual([Flaw.SUPPLY_OVERFLOW]);
+    }
+
+    {
+      const cenotaph = decipher(
+        [
+          Tag.FLAGS,
+          Flag.mask(Flag.ETCHING) | Flag.mask(Flag.TERMS),
           Tag.CAP,
           2,
           Tag.AMOUNT,
           u128.MAX / 2n + 1n,
         ].map(u128)
-      ).cenotaph
-    ).toBe(true);
+      );
+      if (isRunestone(cenotaph)) {
+        throw Error;
+      }
+      expect(cenotaph.flaws).toEqual([Flaw.SUPPLY_OVERFLOW]);
+    }
 
-    expect(
-      decipher(
+    {
+      const cenotaph = decipher(
         [
           Tag.FLAGS,
-          Flag.mask(Flag.ETCHING | Flag.TERMS),
+          Flag.mask(Flag.ETCHING) | Flag.mask(Flag.TERMS),
           Tag.PREMINE,
           1,
           Tag.CAP,
@@ -1182,8 +1330,12 @@ describe('runestone', () => {
           Tag.AMOUNT,
           u128.MAX,
         ].map(u128)
-      ).cenotaph
-    ).toBe(true);
+      );
+      if (isRunestone(cenotaph)) {
+        throw Error;
+      }
+      expect(cenotaph.flaws).toEqual([Flaw.SUPPLY_OVERFLOW]);
+    }
   });
 
   test('invalid_scripts_in_op_returns_are_ignored', () => {
@@ -1206,7 +1358,11 @@ describe('runestone', () => {
         ],
       };
 
-      expect(Runestone.decipher(transaction).unwrap().cenotaph).toBe(true);
+      const cenotaph = Runestone.decipher(transaction).unwrap();
+      if (isRunestone(cenotaph)) {
+        throw Error;
+      }
+      expect(cenotaph.flaws).toEqual([Flaw.INVALID_SCRIPT]);
     }
   });
 });

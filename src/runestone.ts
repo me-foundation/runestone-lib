@@ -10,64 +10,116 @@ import { Flag } from './flag';
 import { Instruction, tryConvertInstructionToBuffer } from './utils';
 import { RuneId } from './runeid';
 import { script } from './script';
+import { Message } from './message';
+import { Artifact } from './artifact';
+import { Flaw } from './flaw';
+import { Cenotaph } from './cenotaph';
 
 export const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
 
 type RunestoneTx = { vout: { scriptPubKey: { hex: string } }[] };
 
-type ValidPayload = Buffer;
+type Payload = Buffer | Flaw;
 
-class InvalidPayload {
-  static readonly INSTANCE = new InvalidPayload();
-  private constructor() {}
-}
-
-type Payload = ValidPayload | InvalidPayload;
-
-export function isValidPayload(payload: Payload): payload is ValidPayload {
-  return payload !== InvalidPayload.INSTANCE;
+export function isValidPayload(payload: Payload): payload is Buffer {
+  return Buffer.isBuffer(payload);
 }
 
 export class Runestone {
   constructor(
-    readonly cenotaph: boolean,
     readonly mint: Option<RuneId>,
     readonly pointer: Option<u32>,
     readonly edicts: Edict[],
     readonly etching: Option<Etching>
   ) {}
 
-  static fromTransaction(transaction: RunestoneTx): Option<Runestone> {
-    try {
-      return Runestone.decipher(transaction);
-    } catch (e) {
-      return None;
-    }
-  }
-
-  static cenotaph(): Runestone {
-    return new Runestone(true, None, None, [], None);
-  }
-
-  static decipher(transaction: RunestoneTx): Option<Runestone> {
+  static decipher(transaction: RunestoneTx): Option<Artifact> {
     const optionPayload = Runestone.payload(transaction);
     if (optionPayload.isNone()) {
       return None;
     }
     const payload = optionPayload.unwrap();
     if (!isValidPayload(payload)) {
-      return Some(Runestone.cenotaph());
+      return Some(new Cenotaph([payload]));
     }
 
     const optionIntegers = Runestone.integers(payload);
     if (optionIntegers.isNone()) {
-      return Some(Runestone.cenotaph());
+      return Some(new Cenotaph([Flaw.VARINT]));
     }
 
-    const { cenotaph, edicts, fields } = Message.fromIntegers(
+    const { flaws, edicts, fields } = Message.fromIntegers(
       transaction.vout.length,
       optionIntegers.unwrap()
     );
+
+    let flags = Tag.take(Tag.FLAGS, fields, 1, ([value]) => Some(value)).unwrapOr(u128(0));
+
+    const etchingResult = Flag.take(flags, Flag.ETCHING);
+    const etchingFlag = etchingResult.set;
+    flags = etchingResult.flags;
+
+    const etching: Option<Etching> = etchingFlag
+      ? (() => {
+          const divisibility = Tag.take(
+            Tag.DIVISIBILITY,
+            fields,
+            1,
+            ([value]): Option<u8> =>
+              u128
+                .tryIntoU8(value)
+                .andThen<u8>((value) => (value <= MAX_DIVISIBILITY ? Some(value) : None))
+          );
+
+          const rune = Tag.take(Tag.RUNE, fields, 1, ([value]) => Some(new Rune(value)));
+
+          const spacers = Tag.take(
+            Tag.SPACERS,
+            fields,
+            1,
+            ([value]): Option<u32> =>
+              u128.tryIntoU32(value).andThen((value) => (value <= MAX_SPACERS ? Some(value) : None))
+          );
+
+          const symbol = Tag.take(Tag.SYMBOL, fields, 1, ([value]) =>
+            u128.tryIntoU32(value).andThen((value) => {
+              try {
+                return Some(String.fromCodePoint(Number(value)));
+              } catch (e) {
+                return None;
+              }
+            })
+          );
+
+          const termsResult = Flag.take(flags, Flag.TERMS);
+          const termsFlag = termsResult.set;
+          flags = termsResult.flags;
+
+          const terms = termsFlag
+            ? (() => {
+                const amount = Tag.take(Tag.AMOUNT, fields, 1, ([value]) => Some(value));
+
+                const cap = Tag.take(Tag.CAP, fields, 1, ([value]) => Some(value));
+
+                const offset = [
+                  Tag.take(Tag.OFFSET_START, fields, 1, ([value]) => u128.tryIntoU64(value)),
+                  Tag.take(Tag.OFFSET_END, fields, 1, ([value]) => u128.tryIntoU64(value)),
+                ] as const;
+
+                const height = [
+                  Tag.take(Tag.HEIGHT_START, fields, 1, ([value]) => u128.tryIntoU64(value)),
+                  Tag.take(Tag.HEIGHT_END, fields, 1, ([value]) => u128.tryIntoU64(value)),
+                ] as const;
+
+                return Some({ amount, cap, offset, height });
+              })()
+            : None;
+
+          const premine = Tag.take(Tag.PREMINE, fields, 1, ([value]) => Some(value));
+
+          return Some(new Etching(divisibility, rune, spacers, symbol, terms, premine));
+        })()
+      : None;
 
     const mint = Tag.take(Tag.MINT, fields, 2, ([block, tx]): Option<RuneId> => {
       const optionBlockU64 = u128.tryIntoU64(block);
@@ -90,106 +142,29 @@ export class Runestone {
           .andThen((value) => (value < transaction.vout.length ? Some(value) : None))
     );
 
-    const divisibility = Tag.take(
-      Tag.DIVISIBILITY,
-      fields,
-      1,
-      ([value]): Option<u8> =>
-        u128
-          .tryIntoU8(value)
-          .andThen<u8>((value) => (value <= MAX_DIVISIBILITY ? Some(value) : None))
-    );
+    if (etching.map((etching) => etching.supply.isNone()).unwrapOr(false)) {
+      flaws.push(Flaw.SUPPLY_OVERFLOW);
+    }
 
-    const amount = Tag.take(Tag.AMOUNT, fields, 1, ([value]) => Some(value));
+    if (flags !== 0n) {
+      flaws.push(Flaw.UNRECOGNIZED_FLAG);
+    }
 
-    const rune = Tag.take(Tag.RUNE, fields, 1, ([value]) => Some(new Rune(value)));
+    if ([...fields.keys()].find((tag) => tag % 2n === 0n) !== undefined) {
+      flaws.push(Flaw.UNRECOGNIZED_EVEN_TAG);
+    }
 
-    const cap = Tag.take(Tag.CAP, fields, 1, ([value]) => Some(value));
-
-    const premine = Tag.take(Tag.PREMINE, fields, 1, ([value]) => Some(value));
-
-    const spacers = Tag.take(
-      Tag.SPACERS,
-      fields,
-      1,
-      ([value]): Option<u32> =>
-        u128.tryIntoU32(value).andThen((value) => (value <= MAX_SPACERS ? Some(value) : None))
-    );
-
-    const symbol = Tag.take(Tag.SYMBOL, fields, 1, ([value]) =>
-      u128.tryIntoU32(value).andThen((value) => {
-        try {
-          return Some(String.fromCodePoint(Number(value)));
-        } catch (e) {
-          return None;
-        }
-      })
-    );
-
-    const offset = [
-      Tag.take(Tag.OFFSET_START, fields, 1, ([value]) => u128.tryIntoU64(value)),
-      Tag.take(Tag.OFFSET_END, fields, 1, ([value]) => u128.tryIntoU64(value)),
-    ] as const;
-
-    const height = [
-      Tag.take(Tag.HEIGHT_START, fields, 1, ([value]) => u128.tryIntoU64(value)),
-      Tag.take(Tag.HEIGHT_END, fields, 1, ([value]) => u128.tryIntoU64(value)),
-    ] as const;
-
-    let flags = Tag.take(Tag.FLAGS, fields, 1, ([value]) => Some(value)).unwrapOr(u128(0));
-
-    const etchingResult = Flag.take(flags, Flag.ETCHING);
-    const etchingFlag = etchingResult.set;
-    flags = etchingResult.flags;
-
-    const termsResult = Flag.take(flags, Flag.TERMS);
-    const terms = termsResult.set;
-    flags = termsResult.flags;
-
-    const overflow = (() => {
-      const premineU128 = premine.unwrapOr(u128(0));
-      const capU128 = cap.unwrapOr(u128(0));
-      const amountU128 = amount.unwrapOr(u128(0));
-
-      const multiplyResult = u128.checkedMultiply(capU128, amountU128);
-      if (multiplyResult.isNone()) {
-        return None;
-      }
-      return u128.checkedAdd(premineU128, multiplyResult.unwrap());
-    })().isNone();
-
-    let etching: Option<Etching> = etchingFlag
-      ? Some(
-          new Etching(
-            divisibility,
-            rune,
-            spacers,
-            symbol,
-            terms
-              ? Some({
-                  amount,
-                  cap,
-                  offset,
-                  height,
-                })
-              : None,
-            premine
-          )
+    if (flaws.length !== 0) {
+      return Some(
+        new Cenotaph(
+          flaws,
+          etching.andThen((etching) => etching.rune),
+          mint
         )
-      : None;
+      );
+    }
 
-    return Some(
-      new Runestone(
-        cenotaph ||
-          overflow ||
-          flags !== 0n ||
-          [...fields.keys()].find((tag) => tag % 2n === 0n) !== undefined,
-        mint,
-        pointer,
-        edicts,
-        etching
-      )
-    );
+    return Some(new Runestone(mint, pointer, edicts, etching));
   }
 
   encipher(): Buffer {
@@ -240,10 +215,6 @@ export class Runestone {
     }
 
     payloads.push(Tag.encodeOptionInt(Tag.POINTER, this.pointer.map(u128)));
-
-    if (this.cenotaph) {
-      payloads.push(Tag.encode(Tag.CENOTAPH, [u128(0)]));
-    }
 
     if (this.edicts.length) {
       payloads.push(u128.encodeVarInt(u128(Tag.BODY)));
@@ -310,7 +281,7 @@ export class Runestone {
         if (nextInstructionResult.done) {
           const decodedSuccessfully = nextInstructionResult.value;
           if (!decodedSuccessfully) {
-            return Some(InvalidPayload.INSTANCE);
+            return Some(Flaw.INVALID_SCRIPT);
           }
           break;
         }
@@ -320,7 +291,7 @@ export class Runestone {
         if (Instruction.isBuffer(result)) {
           payloads.push(result);
         } else {
-          return Some(InvalidPayload.INSTANCE);
+          return Some(Flaw.OPCODE);
         }
       } while (true);
 
@@ -343,67 +314,5 @@ export class Runestone {
     }
 
     return Some(integers);
-  }
-}
-
-export class Message {
-  constructor(
-    readonly cenotaph: boolean,
-    readonly edicts: Edict[],
-    readonly fields: Map<u128, u128[]>
-  ) {}
-
-  static fromIntegers(numOutputs: number, payload: u128[]): Message {
-    const edicts: Edict[] = [];
-    const fields = new Map<u128, u128[]>();
-    let cenotaph = false;
-
-    for (const i of [...Array(Math.ceil(payload.length / 2)).keys()].map((n) => n * 2)) {
-      const tag = payload[i];
-
-      if (u128(Tag.BODY) === tag) {
-        let id = new RuneId(u64(0), u32(0));
-        const chunkSize = 4;
-
-        const body = payload.slice(i + 1);
-        for (let j = 0; j < body.length; j += chunkSize) {
-          const chunk = body.slice(j, j + chunkSize);
-          if (chunk.length !== chunkSize) {
-            cenotaph = true;
-            break;
-          }
-
-          const optionNext = id.next(chunk[0], chunk[1]);
-          if (optionNext.isNone()) {
-            cenotaph = true;
-            break;
-          }
-          const next = optionNext.unwrap();
-
-          const optionEdict = Edict.fromIntegers(numOutputs, next, chunk[2], chunk[3]);
-          if (optionEdict.isNone()) {
-            cenotaph = true;
-            break;
-          }
-          const edict = optionEdict.unwrap();
-
-          id = next;
-          edicts.push(edict);
-        }
-        break;
-      }
-
-      const value = payload[i + 1];
-      if (value === undefined) {
-        cenotaph = true;
-        break;
-      }
-
-      const values = fields.get(tag) ?? [];
-      values.push(value);
-      fields.set(tag, values);
-    }
-
-    return new Message(cenotaph, edicts, fields);
   }
 }

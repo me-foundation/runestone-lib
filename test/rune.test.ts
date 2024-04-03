@@ -3,6 +3,7 @@ import { U128_MAX_BIGINT, u128 } from '../src/integer/u128';
 import { Rune } from '../src/rune';
 import { Network } from '../src/network';
 import { RESERVED, SUBSIDY_HALVING_INTERVAL } from '../src/constants';
+import { u64, u32 } from '../src/integer';
 
 describe('rune', () => {
   test('round trip', () => {
@@ -147,8 +148,11 @@ describe('rune', () => {
 
   test('reserved', () => {
     expect(RESERVED).toBe(Rune.fromString('AAAAAAAAAAAAAAAAAAAAAAAAAAA').value);
-    expect(Rune.getReserved(u128(0)).value).toBe(RESERVED);
-    expect(Rune.getReserved(u128(1)).value).toBe(RESERVED + 1n);
+    expect(Rune.getReserved(u64(0), u32(0)).value).toBe(RESERVED);
+    expect(Rune.getReserved(u64(0), u32(1)).value).toBe(RESERVED + 1n);
+    expect(Rune.getReserved(u64(1), u32(0)).value).toBe(RESERVED + (1n << 32n));
+    expect(Rune.getReserved(u64(1), u32(1)).value).toBe(RESERVED + (1n << 32n) + 1n);
+    expect(Rune.getReserved(u64.MAX, u32.MAX).value).toBe(RESERVED + (u64.MAX << 32n) + u32.MAX);
   });
 
   test('is reserved', () => {
