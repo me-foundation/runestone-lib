@@ -7,7 +7,7 @@ import { u128, u32, u64, u8 } from './integer';
 import { Option, Some, None } from './monads';
 import { Rune } from './rune';
 import { Flag } from './flag';
-import { Instruction, tryConvertInstructionToBuffer } from './utils';
+import { Instruction } from './utils';
 import { RuneId } from './runeid';
 import { script } from './script';
 import { Message } from './message';
@@ -32,6 +32,10 @@ export class Runestone {
     readonly edicts: Edict[],
     readonly etching: Option<Etching>
   ) {}
+
+  get rune(): Option<Rune> {
+    return this.etching.andThen((etching) => etching.rune);
+  }
 
   static decipher(transaction: RunestoneTx): Option<Artifact> {
     const optionPayload = Runestone.payload(transaction);
@@ -287,9 +291,8 @@ export class Runestone {
         }
 
         const instruction = nextInstructionResult.value;
-        const result = tryConvertInstructionToBuffer(instruction);
-        if (Instruction.isBuffer(result)) {
-          payloads.push(result);
+        if (Instruction.isBuffer(instruction)) {
+          payloads.push(instruction);
         } else {
           return Some(Flaw.OPCODE);
         }
