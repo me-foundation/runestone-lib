@@ -239,14 +239,6 @@ const OP_INT_BASE = OPS.OP_RESERVED; // OP_1 - 1
 function singleChunkIsBuffer(buf: number | Buffer): buf is Buffer {
   return Buffer.isBuffer(buf);
 }
-
-function asMinimalOP(buffer: Buffer): number | void {
-  if (buffer.length === 0) return OPS.OP_0;
-  if (buffer.length !== 1) return;
-  if (buffer[0] >= 1 && buffer[0] <= 16) return OP_INT_BASE + buffer[0];
-  if (buffer[0] === 0x81) return OPS.OP_1NEGATE;
-}
-
 export namespace script {
   export type Instruction = number | Buffer;
 
@@ -254,11 +246,6 @@ export namespace script {
     const bufferSize = chunks.reduce((accum: number, chunk) => {
       // data chunk
       if (singleChunkIsBuffer(chunk)) {
-        // adhere to BIP62.3, minimal push policy
-        if (chunk.length === 1 && asMinimalOP(chunk) !== undefined) {
-          return accum + 1;
-        }
-
         return accum + pushdata.encodingLength(chunk.length) + chunk.length;
       }
 
@@ -272,14 +259,6 @@ export namespace script {
     chunks.forEach((chunk) => {
       // data chunk
       if (singleChunkIsBuffer(chunk)) {
-        // adhere to BIP62.3, minimal push policy
-        const opcode = asMinimalOP(chunk);
-        if (opcode !== undefined) {
-          buffer.writeUInt8(opcode, offset);
-          offset += 1;
-          return;
-        }
-
         offset += pushdata.encode(buffer, chunk.length, offset);
         chunk.copy(buffer, offset);
         offset += chunk.length;
@@ -302,7 +281,7 @@ export namespace script {
       const opcode = buffer[i];
 
       // data chunk
-      if (opcode > OPS.OP_0 && opcode <= OPS.OP_PUSHDATA4) {
+      if (opcode >= OPS.OP_0 && opcode <= OPS.OP_PUSHDATA4) {
         const d = pushdata.decode(buffer, i);
 
         // did reading a pushDataInt fail?

@@ -4,7 +4,7 @@ import { u128, u32, u64, u8 } from '../src/integer';
 import { None, Option, Some } from '../src/monads';
 import { Tag } from '../src/tag';
 import { Flag } from '../src/flag';
-import { MAGIC_NUMBER, MAX_DIVISIBILITY } from '../src/constants';
+import { MAGIC_NUMBER, MAX_DIVISIBILITY, OP_RETURN } from '../src/constants';
 import { Rune } from '../src/rune';
 import { SpacedRune } from '../src/spacedrune';
 import { Edict } from '../src/edict';
@@ -215,7 +215,7 @@ describe('runestone', () => {
     }
 
     expect(runestone.flaws).toEqual([Flaw.UNRECOGNIZED_FLAG, Flaw.UNRECOGNIZED_EVEN_TAG]);
-    expect(runestone.etching.isNone()).toBe(true);
+    expect(runestone.rune.isNone()).toBe(true);
   });
 
   test('decipher_etching_with_term', () => {
@@ -1363,6 +1363,69 @@ describe('runestone', () => {
         throw Error;
       }
       expect(cenotaph.flaws).toEqual([Flaw.INVALID_SCRIPT]);
+    }
+  });
+
+  test('all_pushdata_opcodes_are_valid', () => {
+    for (const i of _.range(0, 79)) {
+      const scriptPubKeyBuffers: Buffer[] = [Buffer.from([OP_RETURN, MAGIC_NUMBER, i])];
+      if (i <= 75) {
+        for (const j of _.range(0, i)) {
+          scriptPubKeyBuffers.push(Buffer.from([j % 2]));
+        }
+
+        if (i >= 2) {
+          const additionalIntegersCount = (77 - i) % 4;
+          const additionalIntegers = _.reverse(
+            _.range(0, additionalIntegersCount).map((i) => i % 2)
+          );
+          scriptPubKeyBuffers.push(Buffer.from([additionalIntegersCount, ...additionalIntegers]));
+        }
+      } else if (i === 76) {
+        scriptPubKeyBuffers.push(Buffer.from([0]));
+      } else if (i === 77) {
+        scriptPubKeyBuffers.push(Buffer.from([0, 0]));
+      } else if (i === 78) {
+        scriptPubKeyBuffers.push(Buffer.from([0, 0, 0, 0]));
+      } else {
+        throw Error;
+      }
+
+      const scriptPubKey = Buffer.concat(scriptPubKeyBuffers);
+      expect(
+        isRunestone(
+          Runestone.decipher({
+            vout: [{ scriptPubKey: { hex: scriptPubKey.toString('hex') } }],
+          }).unwrap()
+        )
+      ).toBe(true);
+    }
+  });
+
+  test('all_pushnum_opcodes_are_invalid', () => {
+    for (let i = 1; i <= 16; i++) {
+      {
+        const opcode = opcodes.OP_RESERVED + i;
+        const scriptPubKey = Buffer.from([OP_RETURN, MAGIC_NUMBER, 3, 0, 1, 0, opcode, 1, 0]);
+        expect(
+          isRunestone(
+            Runestone.decipher({
+              vout: [{ scriptPubKey: { hex: scriptPubKey.toString('hex') } }],
+            }).unwrap()
+          )
+        ).toBe(false);
+      }
+
+      {
+        const scriptPubKey = Buffer.from([OP_RETURN, MAGIC_NUMBER, 3, 0, 1, 0, 1, i, 1, 0]);
+        expect(
+          isRunestone(
+            Runestone.decipher({
+              vout: [{ scriptPubKey: { hex: scriptPubKey.toString('hex') } }],
+            }).unwrap()
+          )
+        ).toBe(true);
+      }
     }
   });
 });
