@@ -55,6 +55,31 @@ export namespace u128 {
     return Some(u128(result));
   }
 
+  export function checkedAddThrow(x: u128, y: u128): u128 {
+    const option = u128.checkedAdd(x, y);
+    if (option.isNone()) {
+      throw new Error('checked add overflow');
+    }
+    return option.unwrap();
+  }
+
+  export function checkedSub(x: u128, y: u128): Option<u128> {
+    const result = x - y;
+    if (result < 0n) {
+      return None;
+    }
+
+    return Some(u128(result));
+  }
+
+  export function checkedSubThrow(x: u128, y: u128): u128 {
+    const option = u128.checkedSub(x, y);
+    if (option.isNone()) {
+      throw new Error('checked sub overflow');
+    }
+    return option.unwrap();
+  }
+
   export function checkedMultiply(x: u128, y: u128): Option<u128> {
     const result = x * y;
     if (result > u128.MAX) {
