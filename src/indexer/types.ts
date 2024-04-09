@@ -32,29 +32,30 @@ export interface RunestoneStorage {
 
   /**
    * Save new utxo balances for the given block.
-   * @param balances the block with all the new utxo balances
+   * @param runeBlockIndex the block with all the new utxo balances
    */
-  saveBlockIndex(balances: RuneBlockIndex): Promise<void>;
+  saveBlockIndex(runeBlockIndex: RuneBlockIndex): Promise<void>;
 
   /**
    * Get the etching that deployed the rune if it exists.
-   * @param rune rune string representation
+   * @param runeLocation rune id string representation
    */
-  getEtching(rune: string): Promise<RuneEtching | null>;
+  getEtching(runeLocation: string): Promise<RuneEtching | null>;
 
   /**
    * Get the total valid mint counts for rune.
-   * @param rune rune string representation
+   * @param rune rune id string representation
    */
-  getValidMintCount(rune: string): Promise<number>;
+  getValidMintCount(runeLocation: string): Promise<number>;
+
+  getRuneLocation(rune: string): Promise<RuneLocation | null>;
 
   /**
-   * Get the rune balance for the given UTXO.
-   * @param rune rune string representation
+   * Get the rune balances for the given UTXO.
    * @param txid transaction id
    * @param vout output index in transaction
    */
-  getUtxoBalance(rune: string, txid: string, vout: number): Promise<RuneUtxoBalance>;
+  getUtxoBalance(txid: string, vout: number): Promise<RuneUtxoBalance[]>;
 }
 
 export type RunestoneIndexerOptions = {
@@ -76,11 +77,23 @@ export type BlockInfo = {
   hash: string;
 };
 
+export type RuneLocation = {
+  block: number;
+  tx: number;
+};
+
+export namespace RuneLocation {
+  export function toString(runeId: RuneLocation): string {
+    return `${runeId.block}:${runeId.tx}`;
+  }
+}
+
 export type RuneUtxoBalance = {
   txid: string;
   vout: number;
   address?: string;
   scriptPubKey: Buffer;
+  runeId: RuneLocation;
   rune: string;
   amount: bigint;
 };
@@ -105,19 +118,15 @@ export type RuneEtchingSpec = {
   };
 };
 
-export type RuneEtching = RuneEtchingSpec & {
-  rune: string;
-};
-
-export type RuneMint = {
+export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingSpec)) & {
+  runeId: RuneLocation;
   rune: string;
   txid: string;
-  valid: boolean;
 };
 
 export type RuneBlockIndex = {
   block: BlockInfo;
   etchings: RuneEtching[];
-  mints: RuneMint[];
+  mintCounts: Map<string, number>;
   utxoBalances: RuneUtxoBalance[];
 };

@@ -1,6 +1,7 @@
-import { RunestoneStorage, RuneBlockIndex, RunestoneIndexerOptions } from './types';
+import { RunestoneStorage, RunestoneIndexerOptions } from './types';
 import { Network } from '../network';
 import { BitcoinRpcClient } from '../rpcclient';
+import { RuneUpdater } from './updater';
 
 export * from './types';
 
@@ -53,18 +54,32 @@ export class RunestoneIndexer {
     if (currentStorageBlock != null) {
       // If rpc block indexing is ahead of our storage, let's save up all block hashes
       // until we arrive back to the current storage's block tip.
-      const bestblockhash: string = await this._rpc.getbestblockhash();
-      let rpcBlock = await this._rpc.getblock({
+      const bestblockhashResult = await this._rpc.getbestblockhash();
+      if (bestblockhashResult.error !== null) {
+        throw bestblockhashResult.error;
+      }
+      const bestblockhash = bestblockhashResult.result;
+
+      let rpcBlockResult = await this._rpc.getblock({
         blockhash: bestblockhash,
         verbosity: 1,
       });
+      if (rpcBlockResult.error !== null) {
+        throw rpcBlockResult.error;
+      }
+      let rpcBlock = rpcBlockResult.result;
+
       while (rpcBlock.height > currentStorageBlock.height) {
         newBlockhashesToIndex.push(rpcBlock.hash);
 
-        rpcBlock = await this._rpc.getblock({
+        rpcBlockResult = await this._rpc.getblock({
           blockhash: rpcBlock.previousblockhash,
           verbosity: 1,
         });
+        if (rpcBlockResult.error !== null) {
+          throw rpcBlockResult.error;
+        }
+        rpcBlock = rpcBlockResult.result;
       }
 
       // Handle edge case where storage block height is higher than rpc node block
@@ -79,10 +94,15 @@ export class RunestoneIndexer {
       while (rpcBlock.hash !== storageBlockhash) {
         newBlockhashesToIndex.push(rpcBlock.hash);
 
-        rpcBlock = await this._rpc.getblock({
+        rpcBlockResult = await this._rpc.getblock({
           blockhash: rpcBlock.previousblockhash,
           verbosity: 1,
         });
+        if (rpcBlockResult.error !== null) {
+          throw rpcBlockResult.error;
+        }
+        rpcBlock = rpcBlockResult.result;
+
         storageBlockhash = await this._storage.getBlockhash(rpcBlock.height);
       }
 
@@ -94,39 +114,51 @@ export class RunestoneIndexer {
       const firstRuneHeight = Network.getFirstRuneHeight(this._network);
 
       // Iterate through the rpc blocks until we reach first rune height
-      const bestblockhash: string = await this._rpc.getbestblockhash();
-      let rpcBlock = await this._rpc.getblock({
+      const bestblockhashResult = await this._rpc.getbestblockhash();
+      if (bestblockhashResult.error !== null) {
+        throw bestblockhashResult.error;
+      }
+      const bestblockhash = bestblockhashResult.result;
+
+      let rpcBlockResult = await this._rpc.getblock({
         blockhash: bestblockhash,
         verbosity: 1,
       });
+      if (rpcBlockResult.error !== null) {
+        throw rpcBlockResult.error;
+      }
+      let rpcBlock = rpcBlockResult.result;
+
       while (rpcBlock.height >= firstRuneHeight) {
         newBlockhashesToIndex.push(rpcBlock.hash);
 
-        rpcBlock = await this._rpc.getblock({
+        rpcBlockResult = await this._rpc.getblock({
           blockhash: rpcBlock.previousblockhash,
           verbosity: 1,
         });
+        if (rpcBlockResult.error !== null) {
+          throw rpcBlockResult.error;
+        }
+        rpcBlock = rpcBlockResult.result;
       }
     }
 
     // Finally start processing balances using newBlockhashesToIndex
     let blockhash = newBlockhashesToIndex.pop();
     while (blockhash !== undefined) {
-      const block = await this._rpc.getblock({ blockhash, verbosity: 2 });
-      const runeBlockIndex: RuneBlockIndex = {
-        block,
-        etchings: [],
-        mints: [],
-        utxoBalances: [],
-      };
+      const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
+      if (blockResult.error !== null) {
+        throw blockResult.error;
+      }
+      const block = blockResult.result;
 
-      // TODO: implement retrieving etchings, mints, and utxo balances
-      // look through each transaction
-      // check if any runestones
-      // also check if any balances on inputs
-      // if balance with no runestone, done, transfer to first non op return output
+      const runeUpdater = new RuneUpdater(this._network, block, this._storage, this._rpc);
 
-      await this._storage.saveBlockIndex(runeBlockIndex);
+      for (const [txIndex, tx] of block.tx.entries()) {
+        await runeUpdater.indexRunes(tx, txIndex);
+      }
+
+      await this._storage.saveBlockIndex(runeUpdater);
       blockhash = newBlockhashesToIndex.pop();
     }
   }

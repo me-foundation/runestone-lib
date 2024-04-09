@@ -1,10 +1,18 @@
 type Vin = {
   txid: string;
   vout: number;
+  scriptSig: {
+    asm: string;
+    hex: string;
+  };
+  txinwitness: string[];
+  sequence: number;
 };
 
 type VinCoinbase = {
   coinbase: string;
+  txinwitness: string[];
+  sequence: number;
 };
 
 type Vout = {
@@ -19,7 +27,7 @@ type Vout = {
   };
 };
 
-type Tx = {
+export type Tx = {
   txid: string;
   hash: string;
   version: number;
@@ -56,6 +64,12 @@ export type GetBlockParams = {
   verbosity?: 0 | 1 | 2;
 };
 
+export type GetRawTransactionParams = {
+  txid: string;
+  verbose?: boolean;
+  blockhash?: string;
+};
+
 export type GetBlockReturn<T> = T extends { verbosity: 0 }
   ? string
   : T extends { verbosity: 1 }
@@ -64,7 +78,29 @@ export type GetBlockReturn<T> = T extends { verbosity: 0 }
   ? { tx: Tx[] } & BitcoinBlock
   : { tx: string[] } & BitcoinBlock;
 
+export type GetRawTransactionReturn<T> = T extends { verbose: true }
+  ? Tx & { confirmations?: number }
+  : string;
+
+export type RpcResponse<T> =
+  | {
+      result: T;
+      error: null;
+    }
+  | {
+      result: null;
+      error: {};
+    };
+
 export interface BitcoinRpcClient {
-  getbestblockhash(): Promise<string>;
-  getblock<T extends GetBlockParams>({ verbosity, blockhash }: T): Promise<GetBlockReturn<T>>;
+  getbestblockhash(): Promise<RpcResponse<string>>;
+  getblock<T extends GetBlockParams>({
+    verbosity,
+    blockhash,
+  }: T): Promise<RpcResponse<GetBlockReturn<T>>>;
+  getrawtransaction<T extends GetRawTransactionParams>({
+    txid,
+    verbose,
+    blockhash,
+  }: T): Promise<RpcResponse<GetRawTransactionReturn<T>>>;
 }

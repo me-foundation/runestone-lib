@@ -106,6 +106,8 @@ export interface Option<T extends NonUndefined> {
    */
   map<U extends NonUndefined>(fn: (val: T) => U): Option<U>;
 
+  inspect(fn: (val: T) => void): Option<T>;
+
   /**
    * Transforms the Option into another by applying a function to the contained value,
    * chaining multiple potentially failing operations.
@@ -141,6 +143,8 @@ export interface Option<T extends NonUndefined> {
    * ```
    */
   or(optb: Option<T>): Option<T>;
+
+  orElse(optb: () => Option<T>): Option<T>;
 
   /**
    * Returns the option provided as a parameter if the original Option is Some, otherwise returns None.
@@ -229,11 +233,20 @@ class SomeImpl<T extends NonUndefined> implements SomeOption<T> {
     return Some(fn(this.val));
   }
 
+  inspect(fn: (val: T) => void): Option<T> {
+    fn(this.val);
+    return this;
+  }
+
   andThen<U extends NonUndefined>(fn: (val: T) => Option<U>): Option<U> {
     return fn(this.val);
   }
 
   or<U extends NonUndefined>(_optb: Option<U>): Option<T> {
+    return this;
+  }
+
+  orElse(optb: () => Option<T>): Option<T> {
     return this;
   }
 
@@ -278,12 +291,20 @@ class NoneImpl<T extends NonUndefined> implements NoneOption<T> {
     return new NoneImpl<U>();
   }
 
+  inspect(fn: (val: T) => void): Option<T> {
+    return this;
+  }
+
   andThen<U extends NonUndefined>(_fn: (val: T) => Option<U>): Option<U> {
     return new NoneImpl<U>();
   }
 
   or<U extends NonUndefined>(optb: Option<U>): Option<U> {
     return optb;
+  }
+
+  orElse(optb: () => Option<T>): Option<T> {
+    return optb();
   }
 
   and<U extends NonUndefined>(_optb: Option<U>): Option<U> {
