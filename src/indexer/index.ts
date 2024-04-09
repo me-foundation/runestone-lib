@@ -154,8 +154,7 @@ export class RunestoneIndexer {
 
       const runeUpdater = new RuneUpdater(this._network, block, this._storage, this._rpc);
 
-      for (let txIndex = 0; txIndex < block.tx.length; txIndex++) {
-        const tx = block.tx[txIndex];
+      for (const [txIndex, tx] of block.tx.entries()) {
         await runeUpdater.indexRunes(tx, txIndex);
       }
 
