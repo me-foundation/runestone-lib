@@ -1,6 +1,7 @@
+import assert from 'node:assert/strict';
 import { Artifact, isRunestone } from '../artifact';
 import { COMMIT_INTERVAL, OP_RETURN, TAPROOT_ANNEX_PREFIX } from '../constants';
-import { u128, u32, u64 } from '../integer';
+import { u128, u32, u64, u8 } from '../integer';
 import { None, Option, Some } from '../monads';
 import { Network } from '../network';
 import { BitcoinRpcClient, Tx } from '../rpcclient';
@@ -16,11 +17,16 @@ import {
   RunestoneStorage,
 } from './types';
 
+function isScriptPubKeyHexOpReturn(scriptPubKeyHex: string) {
+  return scriptPubKeyHex && Buffer.from(scriptPubKeyHex, 'hex')[0] === OP_RETURN;
+}
+
 export class RuneUpdater implements RuneBlockIndex {
   block: BlockInfo;
   etchings: RuneEtching[] = [];
   mintCounts: Map<string, number> = new Map();
   utxoBalances: RuneUtxoBalance[] = [];
+  burnedBalances: Map<string, bigint> = new Map();
 
   _minimum: Rune;
 
@@ -114,11 +120,7 @@ export class RuneUpdater implements RuneBlockIndex {
           if (Number(output) === tx.vout.length) {
             // find non-OP_RETURN outputs
             const destinations = [...tx.vout.entries()]
-              .filter(
-                ([_, vout]) =>
-                  !vout.scriptPubKey.hex ||
-                  Buffer.from(vout.scriptPubKey.hex, 'hex')[0] !== OP_RETURN
-              )
+              .filter(([_, vout]) => isScriptPubKeyHexOpReturn(vout.scriptPubKey.hex))
               .map(([index]) => index);
 
             if (amount === 0n) {
@@ -144,106 +146,92 @@ export class RuneUpdater implements RuneBlockIndex {
 
       if (optionEtched.isSome()) {
         const { runeId, rune } = optionEtched.unwrap();
-        // self.create_rune_entry(txid, artifact, id, rune)?;
+        this.createEtching(tx.txid, artifact, runeId, rune);
       }
     }
+
+    const burned: Map<string, u128> = new Map();
+
+    if (optionArtifact.isSome() && !isRunestone(optionArtifact.unwrap())) {
+      for (const [id, balance] of unallocated.entries()) {
+        const currentBalance = burned.get(id) ?? u128(0);
+        burned.set(id, u128.checkedAddThrow(currentBalance, balance));
+      }
+    } else {
+      const pointer = optionArtifact
+        .map((artifact) => {
+          if (!isRunestone(artifact)) {
+            throw new Error('unreachable');
+          }
+
+          return artifact.pointer;
+        })
+        .unwrapOr(None);
+
+      const optionVout = pointer
+        .map((pointer) => Number(pointer))
+        .inspect((pointer) => assert(pointer < allocated.length))
+        .orElse(() => {
+          const entry = [...tx.vout.entries()].find(([_, txOut]) =>
+            isScriptPubKeyHexOpReturn(txOut.scriptPubKey.hex)
+          );
+          return entry !== undefined ? Some(entry[0]) : None;
+        });
+      if (optionVout.isSome()) {
+        const vout = optionVout.unwrap();
+        for (const [id, balance] of unallocated) {
+          if (balance > 0) {
+            const currentBalance = allocated[vout].get(id) ?? u128(0);
+            allocated[vout].set(id, u128.checkedAddThrow(currentBalance, balance));
+          }
+        }
+      } else {
+        for (const [id, balance] of unallocated) {
+          if (balance > 0) {
+            const currentBalance = burned.get(id) ?? u128(0);
+            burned.set(id, u128.checkedAddThrow(currentBalance, balance));
+          }
+        }
+      }
+    }
+
+    // update outpoint balances
+    for (const [vout, balances] of allocated.entries()) {
+      if (balances.size === 0) {
+        continue;
+      }
+
+      // increment burned balances
+      const output = tx.vout[vout];
+      if (isScriptPubKeyHexOpReturn(output.scriptPubKey.hex)) {
+        for (const [id, balance] of balances) {
+          const currentBurned = burned.get(id) ?? u128(0);
+          burned.set(id, u128.checkedAddThrow(currentBurned, balance));
+        }
+        continue;
+      }
+
+      for (const [rune, balance] of balances) {
+        this.utxoBalances.push({
+          runeId: { block: this.block.height, tx: txIndex },
+          rune,
+          amount: balance,
+          scriptPubKey: Buffer.from(output.scriptPubKey.hex),
+          txid: tx.txid,
+          vout,
+          address: output.scriptPubKey.address,
+        });
+      }
+    }
+
+    // increment entries with burned runes
+    for (const [id, amount] of burned) {
+      const currentBurned = u128(this.burnedBalances.get(id) ?? 0n);
+      this.burnedBalances.set(id, u128.checkedAddThrow(currentBurned, amount));
+    }
+
+    return;
   }
-
-  //     let mut burned: HashMap<RuneId, Lot> = HashMap::new();
-
-  //     if let Some(Artifact::Cenotaph(_)) = artifact {
-  //       for (id, balance) in unallocated {
-  //         *burned.entry(id).or_default() += balance;
-  //       }
-  //     } else {
-  //       let pointer = artifact
-  //         .map(|artifact| match artifact {
-  //           Artifact::Runestone(runestone) => runestone.pointer,
-  //           Artifact::Cenotaph(_) => unreachable!(),
-  //         })
-  //         .unwrap_or_default();
-
-  //       // assign all un-allocated runes to the default output, or the first non
-  //       // OP_RETURN output if there is no default, or if the default output is
-  //       // too large
-  //       if let Some(vout) = pointer
-  //         .map(|pointer| pointer.into_usize())
-  //         .inspect(|&pointer| assert!(pointer < allocated.len()))
-  //         .or_else(|| {
-  //           tx.output
-  //             .iter()
-  //             .enumerate()
-  //             .find(|(_vout, tx_out)| !tx_out.script_pubkey.is_op_return())
-  //             .map(|(vout, _tx_out)| vout)
-  //         })
-  //       {
-  //         for (id, balance) in unallocated {
-  //           if balance > 0 {
-  //             *allocated[vout].entry(id).or_default() += balance;
-  //           }
-  //         }
-  //       } else {
-  //         for (id, balance) in unallocated {
-  //           if balance > 0 {
-  //             *burned.entry(id).or_default() += balance;
-  //           }
-  //         }
-  //       }
-  //     }
-
-  //     // update outpoint balances
-  //     let mut buffer: Vec<u8> = Vec::new();
-  //     for (vout, balances) in allocated.into_iter().enumerate() {
-  //       if balances.is_empty() {
-  //         continue;
-  //       }
-
-  //       // increment burned balances
-  //       if tx.output[vout].script_pubkey.is_op_return() {
-  //         for (id, balance) in &balances {
-  //           *burned.entry(*id).or_default() += *balance;
-  //         }
-  //         continue;
-  //       }
-
-  //       buffer.clear();
-
-  //       let mut balances = balances.into_iter().collect::<Vec<(RuneId, Lot)>>();
-
-  //       // Sort balances by id so tests can assert balances in a fixed order
-  //       balances.sort();
-
-  //       for (id, balance) in balances {
-  //         Index::encode_rune_balance(id, balance.n(), &mut buffer);
-  //       }
-
-  //       self.outpoint_to_balances.insert(
-  //         &OutPoint {
-  //           txid,
-  //           vout: vout.try_into().unwrap(),
-  //         }
-  //         .store(),
-  //         buffer.as_slice(),
-  //       )?;
-  //     }
-
-  //     // increment entries with burned runes
-  //     for (id, amount) in burned {
-  //       *self.burned.entry(id).or_default() += amount;
-  //     }
-
-  //     Ok(())
-  //   }
-
-  //   pub(super) fn update(self) -> Result {
-  //     for (rune_id, burned) in self.burned {
-  //       let mut entry = RuneEntry::load(self.id_to_entry.get(&rune_id.store())?.unwrap().value());
-  //       entry.burned = entry.burned.checked_add(burned.n()).unwrap();
-  //       self.id_to_entry.insert(&rune_id.store(), entry.store())?;
-  //     }
-
-  //     Ok(())
-  //   }
 
   async etched(
     txIndex: number,
@@ -393,84 +381,79 @@ export class RuneUpdater implements RuneBlockIndex {
 
     return false;
   }
+
+  createEtching(txid: string, artifact: Artifact, runeId: RuneLocation, rune: Rune) {
+    if (isRunestone(artifact)) {
+      const { divisibility, terms, premine, spacers, symbol } = artifact.etching.unwrap();
+      this.etchings.push({
+        valid: true,
+        rune: rune.toString(),
+        runeId,
+        txid,
+        ...(divisibility.isSome() ? { divisibility: divisibility.map(Number).unwrap() } : {}),
+        ...(premine.isSome() ? { premine: premine.unwrap() } : {}),
+        ...(symbol.isSome() ? { symbol: symbol.unwrap() } : {}),
+        ...(spacers.isSome()
+          ? {
+              spacers: (() => {
+                const spacersNumber = Number(spacers.unwrap());
+                const spacersArray: number[] = [];
+                for (const [i] of new Array(32).entries()) {
+                  if ((spacersNumber & (1 << i)) !== 0) {
+                    spacersArray.push(i);
+                  }
+                }
+                return spacersArray;
+              })(),
+            }
+          : {}),
+        ...(terms.isSome()
+          ? {
+              terms: (() => {
+                const unwrappedTerms = terms.unwrap();
+
+                return {
+                  ...(unwrappedTerms.amount.isSome()
+                    ? { amount: unwrappedTerms.amount.unwrap() }
+                    : {}),
+                  ...(unwrappedTerms.cap.isSome() ? { cap: unwrappedTerms.cap.unwrap() } : {}),
+                  ...(unwrappedTerms.height.filter((option) => option.isSome()).length
+                    ? {
+                        height: {
+                          ...(unwrappedTerms.height[0].isSome()
+                            ? { start: unwrappedTerms.height[0].unwrap() }
+                            : {}),
+                          ...(unwrappedTerms.height[1].isSome()
+                            ? { start: unwrappedTerms.height[1].unwrap() }
+                            : {}),
+                        },
+                      }
+                    : {}),
+                  ...(unwrappedTerms.offset.filter((option) => option.isSome()).length
+                    ? {
+                        offset: {
+                          ...(unwrappedTerms.offset[0].isSome()
+                            ? { start: unwrappedTerms.offset[0].unwrap() }
+                            : {}),
+                          ...(unwrappedTerms.offset[1].isSome()
+                            ? { start: unwrappedTerms.offset[1].unwrap() }
+                            : {}),
+                        },
+                      }
+                    : {}),
+                };
+              })(),
+            }
+          : {}),
+      });
+    } else {
+      // save failed entry
+      this.etchings.push({
+        valid: false,
+        runeId,
+        txid,
+        rune: rune.toString(),
+      });
+    }
+  }
 }
-
-//   fn create_rune_entry(
-//     &mut self,
-//     txid: Txid,
-//     artifact: &Artifact,
-//     id: RuneId,
-//     rune: Rune,
-//   ) -> Result {
-//     self.rune_to_id.insert(rune.store(), id.store())?;
-//     self
-//       .transaction_id_to_rune
-//       .insert(&txid.store(), rune.store())?;
-
-//     let number = self.runes;
-//     self.runes += 1;
-
-//     self
-//       .statistic_to_count
-//       .insert(&Statistic::Runes.into(), self.runes)?;
-
-//     let entry = match artifact {
-//       Artifact::Cenotaph(_) => RuneEntry {
-//         block: id.block,
-//         burned: 0,
-//         divisibility: 0,
-//         etching: txid,
-//         terms: None,
-//         mints: 0,
-//         number,
-//         premine: 0,
-//         spaced_rune: SpacedRune { rune, spacers: 0 },
-//         symbol: None,
-//         timestamp: self.block_time.into(),
-//       },
-//       Artifact::Runestone(Runestone { etching, .. }) => {
-//         let Etching {
-//           divisibility,
-//           terms,
-//           premine,
-//           spacers,
-//           symbol,
-//           ..
-//         } = etching.unwrap();
-
-//         RuneEntry {
-//           block: id.block,
-//           burned: 0,
-//           divisibility: divisibility.unwrap_or_default(),
-//           etching: txid,
-//           terms,
-//           mints: 0,
-//           number,
-//           premine: premine.unwrap_or_default(),
-//           spaced_rune: SpacedRune {
-//             rune,
-//             spacers: spacers.unwrap_or_default(),
-//           },
-//           symbol,
-//           timestamp: self.block_time.into(),
-//         }
-//       }
-//     };
-
-//     self.id_to_entry.insert(id.store(), entry.store())?;
-
-//     let inscription_id = InscriptionId { txid, index: 0 };
-
-//     if let Some(sequence_number) = self
-//       .inscription_id_to_sequence_number
-//       .get(&inscription_id.store())?
-//     {
-//       self
-//         .sequence_number_to_rune_id
-//         .insert(sequence_number.value(), id.store())?;
-//     }
-
-//     Ok(())
-//   }
-
-// }

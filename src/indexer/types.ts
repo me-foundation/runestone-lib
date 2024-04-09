@@ -83,7 +83,7 @@ export type RuneLocation = {
 };
 
 export namespace RuneLocation {
-  export function toString(runeId: RuneLocation) {
+  export function toString(runeId: RuneLocation): string {
     return `${runeId.block}:${runeId.tx}`;
   }
 }
@@ -118,17 +118,11 @@ export type RuneEtchingSpec = {
   };
 };
 
-export type RuneEtching =
-  | {
-      valid: false;
-      runeId: RuneLocation;
-      rune?: string;
-    }
-  | ({
-      valid: true;
-      runeId: RuneLocation;
-      rune: string;
-    } & RuneEtchingSpec);
+export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingSpec)) & {
+  runeId: RuneLocation;
+  rune: string;
+  txid: string;
+};
 
 export type RuneBlockIndex = {
   block: BlockInfo;
