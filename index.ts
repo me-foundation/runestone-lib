@@ -13,7 +13,6 @@ export {
   RuneBlockIndex,
   RuneEtching,
   RuneEtchingSpec,
-  RuneMint,
   RuneUtxoBalance,
   RunestoneIndexer,
   RunestoneIndexerOptions,
