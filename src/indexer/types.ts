@@ -45,8 +45,9 @@ export interface RunestoneStorage {
   /**
    * Get the total valid mint counts for rune.
    * @param rune rune id string representation
+   * @param blockhash hash to specify explicit block chain tip to use
    */
-  getValidMintCount(runeLocation: string): Promise<number>;
+  getValidMintCount(runeLocation: string, blockhash: string): Promise<number>;
 
   getRuneLocation(rune: string): Promise<RuneLocation | null>;
 
@@ -75,6 +76,7 @@ export type RunestoneIndexerOptions = {
 export type BlockInfo = {
   height: number;
   hash: string;
+  previousblockhash: string;
 };
 
 export type RuneLocation = {
@@ -88,6 +90,11 @@ export namespace RuneLocation {
   }
 }
 
+export type RuneOutput = {
+  txid: string;
+  vout: number;
+};
+
 export type RuneUtxoBalance = {
   txid: string;
   vout: number;
@@ -97,6 +104,9 @@ export type RuneUtxoBalance = {
   rune: string;
   amount: bigint;
 };
+
+export type RuneMintCount = { mint: RuneLocation; count: number };
+export type RuneBalance = { runeId: RuneLocation; amount: bigint };
 
 export type RuneEtchingSpec = {
   rune?: string;
@@ -127,6 +137,8 @@ export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingSpec
 export type RuneBlockIndex = {
   block: BlockInfo;
   etchings: RuneEtching[];
-  mintCounts: Map<string, number>;
+  mintCounts: RuneMintCount[];
   utxoBalances: RuneUtxoBalance[];
+  spentOutputs: RuneOutput[];
+  burnedBalances: RuneBalance[];
 };

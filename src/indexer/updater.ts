@@ -1,18 +1,21 @@
 import assert from 'node:assert/strict';
 import { Artifact, isRunestone } from '../artifact';
 import { COMMIT_INTERVAL, OP_RETURN, TAPROOT_ANNEX_PREFIX } from '../constants';
-import { u128, u32, u64, u8 } from '../integer';
+import { u128, u32, u64 } from '../integer';
 import { None, Option, Some } from '../monads';
 import { Network } from '../network';
-import { BitcoinRpcClient, Tx } from '../rpcclient';
+import { BitcoinRpcClient } from '../rpcclient';
 import { Rune } from '../rune';
 import { Runestone } from '../runestone';
 import { script } from '../script';
 import {
   BlockInfo,
   RuneBlockIndex,
+  RuneBalance,
   RuneEtching,
   RuneLocation,
+  RuneMintCount,
+  RuneOutput,
   RuneUtxoBalance,
   RunestoneStorage,
 } from './types';
@@ -21,14 +24,22 @@ function isScriptPubKeyHexOpReturn(scriptPubKeyHex: string) {
   return scriptPubKeyHex && Buffer.from(scriptPubKeyHex, 'hex')[0] === OP_RETURN;
 }
 
+export type UpdaterTx = {
+  txid: string;
+  vin: ({ txid: string; vout: number; txinwitness: string[] } | { coinbase: string })[];
+  vout: { scriptPubKey: { hex: string; address?: string } }[];
+};
+
 export class RuneUpdater implements RuneBlockIndex {
   block: BlockInfo;
   etchings: RuneEtching[] = [];
-  mintCounts: Map<string, number> = new Map();
   utxoBalances: RuneUtxoBalance[] = [];
-  burnedBalances: Map<string, bigint> = new Map();
+  spentOutputs: RuneOutput[] = [];
 
   _minimum: Rune;
+
+  private _mintCountsByRuneLocation: Map<string, RuneMintCount> = new Map();
+  private _burnedBalancesByRuneLocation: Map<string, RuneBalance> = new Map();
 
   constructor(
     network: Network,
@@ -36,14 +47,42 @@ export class RuneUpdater implements RuneBlockIndex {
     private readonly _storage: RunestoneStorage,
     private readonly _rpc: BitcoinRpcClient
   ) {
-    this.block = { height: block.height, hash: block.hash };
+    this.block = {
+      height: block.height,
+      hash: block.hash,
+      previousblockhash: block.previousblockhash,
+    };
     this._minimum = Rune.getMinimumAtHeight(network, u128(block.height));
   }
 
-  async indexRunes(tx: Tx, txIndex: number): Promise<void> {
+  get mintCounts(): RuneMintCount[] {
+    return [...this._mintCountsByRuneLocation.values()];
+  }
+
+  get burnedBalances(): RuneBalance[] {
+    return [...this._burnedBalancesByRuneLocation.values()];
+  }
+
+  async indexRunes(tx: UpdaterTx, txIndex: number): Promise<void> {
     const optionArtifact = Runestone.decipher(tx);
     const unallocated = await this.unallocated(tx);
-    const allocated: Map<string, u128>[] = new Array(tx.vout.length).map(() => new Map());
+    const allocated: Map<string, RuneBalance>[] = [...new Array(tx.vout.length)].map(
+      () => new Map()
+    );
+
+    function getUnallocatedRuneBalance(runeId: RuneLocation) {
+      const key = RuneLocation.toString(runeId);
+      const balance = unallocated.get(key) ?? { runeId, amount: 0n };
+      unallocated.set(key, balance);
+      return balance;
+    }
+
+    function getAllocatedRuneBalance(vout: number, runeId: RuneLocation) {
+      const key = RuneLocation.toString(runeId);
+      const balance = allocated[vout].get(key) ?? { runeId, amount: 0n };
+      allocated[vout].set(key, balance);
+      return balance;
+    }
 
     if (optionArtifact.isSome()) {
       const artifact = optionArtifact.unwrap();
@@ -54,14 +93,13 @@ export class RuneUpdater implements RuneBlockIndex {
           block: Number(runeId.block),
           tx: Number(runeId.tx),
         };
-        const runeLocationString = RuneLocation.toString(runeLocation);
         const optionAmount = await this.mint(runeLocation, tx.txid);
         if (optionAmount.isSome()) {
           const amount = optionAmount.unwrap();
-          const currentUnallocatedAmount = unallocated.get(runeLocationString) ?? u128(0);
-          unallocated.set(
-            runeLocationString,
-            u128.checkedAddThrow(currentUnallocatedAmount, u128(amount))
+          const unallocatedBalance = getUnallocatedRuneBalance(runeLocation);
+          unallocatedBalance.amount = u128.checkedAddThrow(
+            u128(unallocatedBalance.amount),
+            u128(amount)
           );
         }
       }
@@ -73,13 +111,10 @@ export class RuneUpdater implements RuneBlockIndex {
 
         if (optionEtched.isSome()) {
           const etched = optionEtched.unwrap();
-          const runeLocation = RuneLocation.toString(etched.runeId);
-          const currentUnallocated = unallocated.get(runeLocation) ?? u128(0);
-          unallocated.set(
-            runeLocation,
-            u128
-              .checkedAdd(currentUnallocated, runestone.etching.unwrap().premine.unwrapOr(u128(0)))
-              .unwrap()
+          const unallocatedBalance = getUnallocatedRuneBalance(etched.runeId);
+          unallocatedBalance.amount = u128.checkedAddThrow(
+            u128(unallocatedBalance.amount),
+            runestone.etching.unwrap().premine.unwrapOr(u128(0))
           );
         }
 
@@ -105,15 +140,12 @@ export class RuneUpdater implements RuneBlockIndex {
             continue;
           }
 
-          let balance = maybeBalance;
+          let balance = u128(maybeBalance.amount);
           let allocate = (amount: u128, output: number) => {
             if (amount > 0n) {
-              const currentAllocated = allocated[output].get(runeLocationString) ?? u128(0);
+              const currentAllocated = getAllocatedRuneBalance(output, runeLocation);
               balance = u128.checkedSubThrow(balance, amount);
-              allocated[output].set(
-                runeLocationString,
-                u128.checkedAddThrow(currentAllocated, amount)
-              );
+              currentAllocated.amount = u128.checkedAddThrow(u128(currentAllocated.amount), amount);
             }
           };
 
@@ -150,12 +182,22 @@ export class RuneUpdater implements RuneBlockIndex {
       }
     }
 
-    const burned: Map<string, u128> = new Map();
+    const burned: Map<string, RuneBalance> = new Map();
+
+    function getBurnedRuneBalance(runeId: RuneLocation) {
+      const key = RuneLocation.toString(runeId);
+      const balance = burned.get(key) ?? { runeId, amount: 0n };
+      burned.set(key, balance);
+      return balance;
+    }
 
     if (optionArtifact.isSome() && !isRunestone(optionArtifact.unwrap())) {
       for (const [id, balance] of unallocated.entries()) {
-        const currentBalance = burned.get(id) ?? u128(0);
-        burned.set(id, u128.checkedAddThrow(currentBalance, balance));
+        const currentBalance = getBurnedRuneBalance(balance.runeId);
+        currentBalance.amount = u128.checkedAddThrow(
+          u128(currentBalance.amount),
+          u128(balance.amount)
+        );
       }
     } else {
       const pointer = optionArtifact
@@ -180,16 +222,22 @@ export class RuneUpdater implements RuneBlockIndex {
       if (optionVout.isSome()) {
         const vout = optionVout.unwrap();
         for (const [id, balance] of unallocated) {
-          if (balance > 0) {
-            const currentBalance = allocated[vout].get(id) ?? u128(0);
-            allocated[vout].set(id, u128.checkedAddThrow(currentBalance, balance));
+          if (balance.amount > 0) {
+            const currentBalance = getAllocatedRuneBalance(vout, balance.runeId);
+            currentBalance.amount = u128.checkedAddThrow(
+              u128(currentBalance.amount),
+              u128(balance.amount)
+            );
           }
         }
       } else {
         for (const [id, balance] of unallocated) {
-          if (balance > 0) {
-            const currentBalance = burned.get(id) ?? u128(0);
-            burned.set(id, u128.checkedAddThrow(currentBalance, balance));
+          if (balance.amount > 0) {
+            const currentBalance = getBurnedRuneBalance(balance.runeId);
+            burned.set(id, {
+              runeId: balance.runeId,
+              amount: u128.checkedAddThrow(u128(currentBalance.amount), u128(balance.amount)),
+            });
           }
         }
       }
@@ -205,8 +253,11 @@ export class RuneUpdater implements RuneBlockIndex {
       const output = tx.vout[vout];
       if (isScriptPubKeyHexOpReturn(output.scriptPubKey.hex)) {
         for (const [id, balance] of balances) {
-          const currentBurned = burned.get(id) ?? u128(0);
-          burned.set(id, u128.checkedAddThrow(currentBurned, balance));
+          const currentBurned = getBurnedRuneBalance(balance.runeId);
+          currentBurned.amount = u128.checkedAddThrow(
+            u128(currentBurned.amount),
+            u128(balance.amount)
+          );
         }
         continue;
       }
@@ -215,7 +266,7 @@ export class RuneUpdater implements RuneBlockIndex {
         this.utxoBalances.push({
           runeId: { block: this.block.height, tx: txIndex },
           rune,
-          amount: balance,
+          amount: balance.amount,
           scriptPubKey: Buffer.from(output.scriptPubKey.hex),
           txid: tx.txid,
           vout,
@@ -225,9 +276,9 @@ export class RuneUpdater implements RuneBlockIndex {
     }
 
     // increment entries with burned runes
-    for (const [id, amount] of burned) {
-      const currentBurned = u128(this.burnedBalances.get(id) ?? 0n);
-      this.burnedBalances.set(id, u128.checkedAddThrow(currentBurned, amount));
+    for (const [id, balance] of burned) {
+      const currentBurned = getBurnedRuneBalance(balance.runeId);
+      currentBurned.amount = u128.checkedAddThrow(u128(currentBurned.amount), u128(balance.amount));
     }
 
     return;
@@ -235,13 +286,10 @@ export class RuneUpdater implements RuneBlockIndex {
 
   async etched(
     txIndex: number,
-    tx: Tx,
+    tx: UpdaterTx,
     artifact: Artifact
   ): Promise<Option<{ runeId: RuneLocation; rune: Rune }>> {
     const optionRune = artifact.rune;
-    if (optionRune.isNone()) {
-      return None;
-    }
 
     let rune: Rune;
     if (optionRune.isSome()) {
@@ -301,8 +349,15 @@ export class RuneUpdater implements RuneBlockIndex {
 
     const cap = terms.cap ?? 0n;
 
-    const currentBlockMints = this.mintCounts.get(runeLocation) ?? 0;
-    const totalMints = currentBlockMints + (await this._storage.getValidMintCount(runeLocation));
+    const currentBlockMints = this._mintCountsByRuneLocation.get(runeLocation) ?? {
+      mint: id,
+      count: 0,
+    };
+    this._mintCountsByRuneLocation.set(runeLocation, currentBlockMints);
+
+    const totalMints =
+      currentBlockMints.count +
+      (await this._storage.getValidMintCount(runeLocation, this.block.previousblockhash));
 
     if (totalMints >= cap) {
       return None;
@@ -310,13 +365,13 @@ export class RuneUpdater implements RuneBlockIndex {
 
     const amount = terms.amount ?? 0n;
 
-    this.mintCounts.set(runeLocation, currentBlockMints + 1);
+    currentBlockMints.count++;
 
     return Some(amount);
   }
 
-  private async unallocated(tx: Tx) {
-    const unallocated = new Map<string, u128>();
+  private async unallocated(tx: UpdaterTx) {
+    const unallocated = new Map<string, RuneBalance>();
 
     for (const input of tx.vin) {
       if ('coinbase' in input) {
@@ -324,18 +379,20 @@ export class RuneUpdater implements RuneBlockIndex {
       }
 
       const utxoBalance = await this._storage.getUtxoBalance(input.txid, input.vout);
+      this.spentOutputs.push({ txid: input.txid, vout: input.vout });
       for (const additionalBalance of utxoBalance) {
-        const runeLocation = RuneLocation.toString(additionalBalance.runeId);
-        const existingBalance = unallocated.get(runeLocation) ?? u128(0);
-        const newBalance = u128.checkedAddThrow(existingBalance, u128(additionalBalance.amount));
-        unallocated.set(runeLocation, newBalance);
+        const runeId = additionalBalance.runeId;
+        const runeLocation = RuneLocation.toString(runeId);
+        const balance = unallocated.get(runeLocation) ?? { runeId, amount: 0n };
+        unallocated.set(runeLocation, balance);
+        balance.amount = u128.checkedAddThrow(u128(balance.amount), u128(additionalBalance.amount));
       }
     }
 
     return unallocated;
   }
 
-  async txCommitsToRune(tx: Tx, rune: Rune): Promise<boolean> {
+  async txCommitsToRune(tx: UpdaterTx, rune: Rune): Promise<boolean> {
     const commitment = rune.commitment;
     for (const input of tx.vin) {
       if ('coinbase' in input) {

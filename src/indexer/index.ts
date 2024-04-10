@@ -9,16 +9,18 @@ export class RunestoneIndexer {
   private readonly _storage: RunestoneStorage;
   private readonly _rpc: BitcoinRpcClient;
   private readonly _network: Network;
-  private readonly _pollIntervalMs: number;
+  private readonly _pollIntervalMs: number | null;
 
   private _started: boolean = false;
+  private _updateInProgress: Promise<void> | null = null;
   private _intervalId: NodeJS.Timeout | null = null;
 
   constructor(options: RunestoneIndexerOptions) {
     this._rpc = options.bitcoinRpcClient;
     this._storage = options.storage;
     this._network = options.network;
-    this._pollIntervalMs = Math.max(options.pollIntervalMs ?? 10000, 1);
+    this._pollIntervalMs =
+      options.pollIntervalMs !== null ? Math.max(options.pollIntervalMs ?? 10000, 0) : null;
   }
 
   async start(): Promise<void> {
@@ -30,7 +32,9 @@ export class RunestoneIndexer {
 
     this._started = true;
 
-    this._intervalId = setInterval(() => this.updateRuneUtxoBalances(), this._pollIntervalMs);
+    if (this._pollIntervalMs !== null) {
+      this._intervalId = setInterval(() => this.updateRuneUtxoBalances(), this._pollIntervalMs);
+    }
   }
 
   async stop(): Promise<void> {
@@ -47,7 +51,20 @@ export class RunestoneIndexer {
     this._started = false;
   }
 
-  private async updateRuneUtxoBalances() {
+  async updateRuneUtxoBalances(): Promise<void> {
+    if (this._updateInProgress) {
+      return;
+    }
+
+    this._updateInProgress = this.updateRuneUtxoBalancesImpl();
+    try {
+      await this._updateInProgress;
+    } finally {
+      this._updateInProgress = null;
+    }
+  }
+
+  private async updateRuneUtxoBalancesImpl() {
     const newBlockhashesToIndex: string[] = [];
 
     const currentStorageBlock = await this._storage.getCurrentBlock();
