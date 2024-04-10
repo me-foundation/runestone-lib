@@ -10,14 +10,30 @@ import { MAX_DIVISIBILITY } from './src/constants';
 
 export {
   BlockInfo,
+  RuneBalance,
   RuneBlockIndex,
   RuneEtching,
   RuneEtchingSpec,
+  RuneLocation,
+  RuneMintCount,
+  RuneOutput,
   RuneUtxoBalance,
   RunestoneIndexer,
   RunestoneIndexerOptions,
   RunestoneStorage,
 } from './src/indexer';
+
+export { Network } from './src/network';
+
+export {
+  BitcoinRpcClient,
+  GetBlockParams,
+  GetBlockReturn,
+  GetRawTransactionParams,
+  GetRawTransactionReturn,
+  RpcResponse,
+  Tx,
+} from './src/rpcclient';
 
 export type RunestoneSpec = {
   mint?: {
