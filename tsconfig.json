@@ -16,7 +16,7 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "inlineSourceMap": false,
-    "esModuleInterop": true,
+    "esModuleInterop": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "composite": true,
