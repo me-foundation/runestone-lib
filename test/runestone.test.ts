@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import * as _ from 'lodash';
 import { MAX_SPACERS, Runestone, isValidPayload } from '../src/runestone';
 import { u128, u32, u64, u8 } from '../src/integer';
 import { None, Option, Some } from '../src/monads';

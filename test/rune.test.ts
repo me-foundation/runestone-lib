@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import * as _ from 'lodash';
 import { U128_MAX_BIGINT, u128 } from '../src/integer/u128';
 import { Rune } from '../src/rune';
 import { Network } from '../src/network';
