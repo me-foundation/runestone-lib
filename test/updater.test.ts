@@ -685,6 +685,59 @@ describe('mint', () => {
   });
 });
 
+test('mint is valid for etching in same block', async () => {
+  const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+
+  storage.getValidMintCount.mockResolvedValue(0);
+
+  const tx1: UpdaterTx = {
+    txid: 'txid1',
+    vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+    vout: [
+      {
+        scriptPubKey: {
+          hex: getDeployRunestoneHex({
+            etching: { terms: { amount: 100, cap: 1 } },
+          }),
+        },
+      },
+      MAGIC_EDEN_OUTPUT,
+    ],
+  };
+  await runeUpdater.indexRunes(tx1, 21);
+
+  const tx2: UpdaterTx = {
+    txid: 'txid2',
+    vin: [{ txid: 'parenttxid', vout: 2, txinwitness: [] }],
+    vout: [
+      {
+        scriptPubKey: {
+          hex: getDeployRunestoneHex({
+            edicts: [{ id: [100000, 21], amount: 100, output: 1 }],
+            mint: [100000, 21],
+          }),
+        },
+      },
+      MAGIC_EDEN_OUTPUT,
+    ],
+  };
+
+  await runeUpdater.indexRunes(tx2, 88);
+
+  expect(runeUpdater.etchings.length).toBe(1);
+  expect(runeUpdater.utxoBalances.length).toBe(1);
+  expect(runeUpdater.utxoBalances[0]).toMatchObject({
+    txid: 'txid2',
+    vout: 1,
+    rune: 'AAAAAAAAAAAAAAAADBCSMALNGAF',
+    runeId: {
+      block: 100000,
+      tx: 21,
+    },
+    amount: 100n,
+  });
+});
+
 describe('edict', () => {
   test('edicts successfully moves runes', async () => {
     const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
@@ -763,6 +816,76 @@ describe('edict', () => {
       },
       amount: 69n,
     });
+  });
+
+  test('edicts chained successfully moves runes', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx1: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({}),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+    const tx2: UpdaterTx = {
+      txid: 'childtxid',
+      vin: [{ txid: 'txid', vout: 1, txinwitness: [] }],
+      vout: [MAGIC_EDEN_OUTPUT],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 500n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx1, 88);
+    await runeUpdater.indexRunes(tx2, 89);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(2);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 400n,
+    });
+    expect(runeUpdater.utxoBalances[1]).toMatchObject({
+      txid: 'childtxid',
+      vout: 0,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 400n,
+    });
+    expect(runeUpdater.spentOutputs).toEqual([
+      { txid: 'parenttxid', vout: 0 },
+      { txid: 'txid', vout: 1 },
+    ]);
   });
 
   test('edict with invalid output is cenotaph', async () => {

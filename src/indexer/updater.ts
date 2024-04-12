@@ -350,7 +350,13 @@ export class RuneUpdater implements RuneBlockIndex {
 
   private async mint(id: RuneLocation, txid: string): Promise<Option<bigint>> {
     const runeLocation = RuneLocation.toString(id);
-    const etching = await this._storage.getEtching(runeLocation);
+
+    const etchingByRuneId = new Map(
+      this.etchings.map((etching) => [RuneLocation.toString(etching.runeId), etching])
+    );
+
+    const etching =
+      etchingByRuneId.get(runeLocation) ?? (await this._storage.getEtching(runeLocation));
     if (etching === null || !etching.valid || !etching.terms) {
       return None;
     }
@@ -405,12 +411,22 @@ export class RuneUpdater implements RuneBlockIndex {
   private async unallocated(tx: UpdaterTx) {
     const unallocated = new Map<string, RuneBalance>();
 
+    const utxoBalancesByOutputLocation = new Map<string, RuneUtxoBalance[]>();
+    for (const utxoBalance of this.utxoBalances) {
+      const location = `${utxoBalance.txid}:${utxoBalance.vout}`;
+      const balances = utxoBalancesByOutputLocation.get(location) ?? [];
+      balances.push(utxoBalance);
+      utxoBalancesByOutputLocation.set(location, balances);
+    }
+
     for (const input of tx.vin) {
       if ('coinbase' in input) {
         continue;
       }
 
-      const utxoBalance = await this._storage.getUtxoBalance(input.txid, input.vout);
+      const utxoBalance =
+        utxoBalancesByOutputLocation.get(`${input.txid}:${input.vout}`) ??
+        (await this._storage.getUtxoBalance(input.txid, input.vout));
       this.spentOutputs.push({ txid: input.txid, vout: input.vout });
       for (const additionalBalance of utxoBalance) {
         const runeId = additionalBalance.runeId;
