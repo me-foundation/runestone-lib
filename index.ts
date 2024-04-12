@@ -9,6 +9,7 @@ import { Terms } from './src/terms';
 import { MAX_DIVISIBILITY } from './src/constants';
 
 export {
+  BlockIdentifier,
   BlockInfo,
   RuneBalance,
   RuneBlockIndex,

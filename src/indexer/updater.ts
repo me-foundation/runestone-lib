@@ -56,6 +56,7 @@ export class RuneUpdater implements RuneBlockIndex {
       height: block.height,
       hash: block.hash,
       previousblockhash: block.previousblockhash,
+      time: block.time,
     };
     this._minimum = Rune.getMinimumAtHeight(network, u128(block.height));
   }
