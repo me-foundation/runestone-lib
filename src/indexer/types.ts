@@ -21,14 +21,20 @@ export interface RunestoneStorage {
   /**
    * Get the most recently indexed block's index and hash stored in IRunestoneStorage.
    */
-  getCurrentBlock(): Promise<BlockInfo | null>;
+  getCurrentBlock(): Promise<BlockIdentifier | null>;
 
   /**
    * Reset the most recent index block to a previous block height/hash by unindexing all blocks
    * following the specified block (this is used to handle reorgs).
    * @param block the block height and hash to reset current block to
    */
-  resetCurrentBlock(block: BlockInfo): Promise<void>;
+  resetCurrentBlock(block: BlockIdentifier): Promise<void>;
+
+  /**
+   * Seeds the database with any predefined etchings.
+   * @param etchings etchings to seed the database with
+   */
+  seedEtchings(etchings: RuneEtching[]): Promise<void>;
 
   /**
    * Save new utxo balances for the given block.
@@ -73,10 +79,14 @@ export type RunestoneIndexerOptions = {
   pollIntervalMs?: number;
 };
 
-export type BlockInfo = {
+export type BlockIdentifier = {
   height: number;
   hash: string;
+};
+
+export type BlockInfo = BlockIdentifier & {
   previousblockhash: string;
+  time: number;
 };
 
 export type RuneLocation = {

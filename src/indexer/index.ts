@@ -2,6 +2,7 @@ import { RunestoneStorage, RunestoneIndexerOptions } from './types';
 import { Network } from '../network';
 import { BitcoinRpcClient } from '../rpcclient';
 import { RuneUpdater } from './updater';
+import { u128 } from '../integer';
 
 export * from './types';
 
@@ -34,6 +35,20 @@ export class RunestoneIndexer {
 
     if (this._pollIntervalMs !== null) {
       this._intervalId = setInterval(() => this.updateRuneUtxoBalances(), this._pollIntervalMs);
+    }
+
+    if (this._network === Network.MAINNET) {
+      this._storage.seedEtchings([
+        {
+          rune: 'UNCOMMONGOODS',
+          runeId: { block: 1, tx: 0 },
+          txid: '0000000000000000000000000000000000000000000000000000000000000000',
+          valid: true,
+          spacers: [7],
+          symbol: '⧉',
+          terms: { amount: 1n, cap: u128.MAX, height: { start: 840000n, end: 1050000n } },
+        },
+      ]);
     }
   }
 
