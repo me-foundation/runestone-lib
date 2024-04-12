@@ -11,3 +11,5 @@ export const MAGIC_NUMBER = opcodes.OP_13;
 
 export const TAPROOT_ANNEX_PREFIX = 0x50;
 export const COMMIT_INTERVAL = 6;
+
+export const TAPROOT_SCRIPT_PUBKEY_TYPE = 'witness_v1_taproot';

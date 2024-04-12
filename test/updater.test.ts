@@ -1,131 +1,26 @@
 import { mock } from 'jest-mock-extended';
-import {
-  BlockInfo,
-  RuneBlockIndex,
-  RuneEtching,
-  RuneLocation,
-  RuneUtxoBalance,
-  RunestoneStorage,
-} from '../src/indexer/types';
+import { RunestoneStorage } from '../src/indexer/types';
 import { RuneUpdater, UpdaterTx } from '../src/indexer/updater';
 import { BitcoinRpcClient } from '../src/rpcclient';
 import { Network } from '../src/network';
-import { Runestone } from '../src/runestone';
-import { RuneId } from '../src/runeid';
-import { Etching } from '../src/etching';
-import { u128, u32, u64, u8 } from '../src/integer';
-import { Some, None } from '../src/monads';
-import { Rune } from '../src/rune';
+import { MAGIC_EDEN_OUTPUT, getDeployRunestoneHex } from './fixtures';
+import { OP_RETURN, TAPROOT_SCRIPT_PUBKEY_TYPE } from '../src/constants';
+import _ from 'lodash';
 
 function getDefaultRuneUpdaterContext() {
   const block = { hash: 'hash', height: 100_000, previousblockhash: 'previousblockhash' };
-  const storage = new MemoryStorage();
+
+  const storage = mock<RunestoneStorage>();
+  storage.getEtching.mockResolvedValue(null);
+  storage.getValidMintCount.mockResolvedValue(0);
+  storage.getRuneLocation.mockResolvedValue(null);
+  storage.getUtxoBalance.mockResolvedValue([]);
+
   const rpc = mock<BitcoinRpcClient>();
+
   const runeUpdater = new RuneUpdater(Network.MAINNET, block, storage, rpc);
+
   return { runeUpdater, block, storage, rpc };
-}
-
-class MemoryStorage implements RunestoneStorage {
-  etching: RuneEtching | null = null;
-  mintCount: number = 0;
-  runeId: RuneLocation | null = null;
-  utxoBalances: RuneUtxoBalance[] = [];
-
-  async connect(): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
-  async disconnect(): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
-  async getBlockhash(blockHeight: number): Promise<string | null> {
-    throw new Error('Method not implemented.');
-  }
-  async getCurrentBlock(): Promise<BlockInfo | null> {
-    throw new Error('Method not implemented.');
-  }
-  async resetCurrentBlock(block: BlockInfo): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
-
-  async getEtching(runeLocation: string): Promise<RuneEtching | null> {
-    return this.etching;
-  }
-  async getValidMintCount(runeLocation: string, blockhash: string): Promise<number> {
-    return this.mintCount;
-  }
-  async getRuneLocation(rune: string): Promise<RuneLocation | null> {
-    return this.runeId;
-  }
-  async getUtxoBalance(txid: string, vout: number): Promise<RuneUtxoBalance[]> {
-    return this.utxoBalances;
-  }
-
-  async saveBlockIndex(runeBlockIndex: RuneBlockIndex): Promise<void> {}
-}
-
-function getDeployRunestoneHex({
-  mint,
-  pointer,
-  edicts,
-  etching,
-}: {
-  mint?: [number, number];
-  pointer?: number;
-  edicts?: {
-    id: [number, number];
-    amount: number;
-    output: number;
-  }[];
-  etching?: {
-    divisibility?: number;
-    rune?: string;
-    spacers?: number;
-    symbol?: string;
-    terms?: {
-      amount: number;
-      cap: number;
-      height: { start?: number; end?: number };
-      offset: { start?: number; end?: number };
-    };
-    premine?: number;
-  };
-}) {
-  return new Runestone(
-    mint !== undefined ? Some(new RuneId(u64(mint[0]), u32(mint[1]))) : None,
-    pointer !== undefined ? Some(pointer) : None,
-    edicts?.map((edict) => ({
-      id: new RuneId(u64(edict.id[0]), u32(edict.id[1])),
-      amount: u128(edict.amount),
-      output: u32(edict.output),
-    })) ?? [],
-    etching !== undefined
-      ? Some(
-          new Etching(
-            etching.divisibility !== undefined ? Some(u8(etching.divisibility)) : None,
-            etching.rune !== undefined ? Some(Rune.fromString(etching.rune)) : None,
-            etching.spacers !== undefined ? Some(u32(etching.spacers)) : None,
-            etching.symbol !== undefined ? Some(etching.symbol) : None,
-            etching.terms !== undefined
-              ? Some({
-                  amount: u128(etching.terms.amount),
-                  cap: u128(etching.terms.cap),
-                  height: [
-                    etching.terms.height?.start !== undefined
-                      ? Some(u64(etching.terms.height.start))
-                      : None,
-                    etching.terms.height?.end !== undefined
-                      ? Some(u64(etching.terms.height.end))
-                      : None,
-                  ],
-                })
-              : None,
-            etching.premine !== undefined ? Some(u128(etching.premine)) : None
-          )
-        )
-      : None
-  )
-    .encipher()
-    .toString('hex');
 }
 
 describe('deploy', () => {
@@ -145,13 +40,15 @@ describe('deploy', () => {
 
   test('deploy is unsuccessful due rune specified below minimum', async () => {
     const { runeUpdater } = getDefaultRuneUpdaterContext();
-    const tx: UpdaterTx = {
-      txid: 'txid',
-      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
-      vout: [{ scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAA' } }) } }],
-    };
 
-    await runeUpdater.indexRunes(tx, 88);
+    await runeUpdater.indexRunes(
+      {
+        txid: 'txid',
+        vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+        vout: [{ scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAA' } }) } }],
+      },
+      88
+    );
     expect(runeUpdater.etchings.length).toBe(0);
   });
 
@@ -178,7 +75,7 @@ describe('deploy', () => {
     rpc.getrawtransaction.mockResolvedValue({
       result: {
         confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: 'witness_v1_taproot' } }],
+        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
       error: null,
     });
@@ -199,7 +96,7 @@ describe('deploy', () => {
     rpc.getrawtransaction.mockResolvedValue({
       result: {
         confirmations: 5,
-        vout: [{}, { scriptPubKey: { type: 'witness_v1_taproot' } }],
+        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
       error: null,
     });
@@ -220,11 +117,11 @@ describe('deploy', () => {
     rpc.getrawtransaction.mockResolvedValue({
       result: {
         confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: 'witness_v1_taproot' } }],
+        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
       error: null,
     });
-    storage.getRuneLocation = async () => ({ block: 1, tx: 1 });
+    storage.getRuneLocation.mockResolvedValue({ block: 1, tx: 1 });
 
     await runeUpdater.indexRunes(tx, 88);
     expect(runeUpdater.etchings.length).toBe(0);
@@ -242,7 +139,7 @@ describe('deploy', () => {
     rpc.getrawtransaction.mockResolvedValue({
       result: {
         confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: 'witness_v1_taproot' } }],
+        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
       error: null,
     });
@@ -263,7 +160,7 @@ describe('deploy', () => {
     rpc.getrawtransaction.mockResolvedValue({
       result: {
         confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: 'witness_v1_taproot' } }],
+        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
       error: null,
     });
@@ -272,6 +169,7 @@ describe('deploy', () => {
     expect(runeUpdater.etchings.length).toBe(1);
     expect(runeUpdater.etchings[0]).toMatchObject({ valid: true, rune: 'AAAAAAAAAAAAAA' });
   });
+
   test('deploy is successful due to no commitment and rune unspecified', async () => {
     const { runeUpdater } = getDefaultRuneUpdaterContext();
     const tx: UpdaterTx = {
@@ -304,39 +202,1204 @@ describe('deploy', () => {
     rpc.getrawtransaction.mockResolvedValue({
       result: {
         confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: 'witness_v1_taproot' } }],
+        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
       error: null,
     });
 
     await runeUpdater.indexRunes(tx, 88);
     expect(runeUpdater.etchings.length).toBe(1);
-    expect(runeUpdater.etchings[0]).toMatchObject({ valid: false, rune: 'AAAAAAAAAAAAAA' });
+    expect(runeUpdater.etchings[0]).toMatchObject({
+      valid: false,
+      rune: 'AAAAAAAAAAAAAA',
+    });
   });
 
-  test('deploy is successful with allocation', async () => {});
-  test('deploy is successful with allocation to multiple outputs', async () => {});
+  test('deploy is successful with allocation', async () => {
+    const { runeUpdater } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              etching: { premine: 123 },
+              edicts: [{ id: [0, 0], amount: 123, output: 1 }],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
 
-  test('deploy is successful with terms, premine', async () => {});
-  test('deploy is successful with terms, premine, output more than premine ok', async () => {});
-  test('deploy is successful with terms, premine to multiple outputs', async () => {});
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(1);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 123n,
+    });
+  });
+
+  test('deploy is successful with allocation to multiple outputs', async () => {
+    const { runeUpdater } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              etching: { premine: 123 },
+              edicts: [
+                { id: [0, 0], amount: 111, output: 1 },
+                { id: [0, 0], amount: 11, output: 2 },
+                { id: [0, 0], amount: 1, output: 3 },
+              ],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(1);
+    expect(runeUpdater.utxoBalances.length).toBe(3);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 111n,
+    });
+    expect(runeUpdater.utxoBalances[1]).toMatchObject({
+      txid: 'txid',
+      vout: 2,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 11n,
+    });
+    expect(runeUpdater.utxoBalances[2]).toMatchObject({
+      txid: 'txid',
+      vout: 3,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 1n,
+    });
+  });
+
+  test('deploy is successful with terms, premine, output more than premine ok', async () => {
+    const { runeUpdater } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              etching: { premine: 123 },
+              edicts: [{ id: [0, 0], amount: 500, output: 1 }],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(1);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 123n,
+    });
+  });
+
+  test('deploy is successful with terms, premine, multiple edicts to same output', async () => {
+    const { runeUpdater } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              etching: { premine: 123 },
+              edicts: [
+                { id: [0, 0], amount: 100, output: 1 },
+                { id: [0, 0], amount: 23, output: 1 },
+              ],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(1);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 123n,
+    });
+  });
+
+  test('deploy is successful with terms, premine to multiple outputs', async () => {
+    const { runeUpdater } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              etching: { premine: 123 },
+              edicts: [
+                { id: [0, 0], amount: 100, output: 1 },
+                { id: [0, 0], amount: 23, output: 2 },
+              ],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(1);
+    expect(runeUpdater.utxoBalances.length).toBe(2);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 100n,
+    });
+    expect(runeUpdater.utxoBalances[1]).toMatchObject({
+      txid: 'txid',
+      vout: 2,
+      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeId: {
+        block: 100000,
+        tx: 88,
+      },
+      amount: 23n,
+    });
+  });
 });
 
 describe('mint', () => {
-  test('mint is valid with no block height restrictions', async () => {});
-  test('mint is valid/invalid with one or both of absolute/relative start', async () => {});
-  test('mint is valid/invalid with one or both of absolute/relative end', async () => {});
-  test('mint is valid/invalid with cap', async () => {});
-  test('mint is valid with amount specified and outputs is under/equal/over', async () => {});
-  test('mint is valid with amount with multiple outputs', async () => {});
+  test('mint is valid with no block height restrictions', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [{ id: [876543, 21], amount: 100, output: 1 }],
+              mint: [876543, 21],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getValidMintCount.mockResolvedValue(0);
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 100n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 876543,
+        tx: 21,
+      },
+      amount: 100n,
+    });
+  });
+
+  test.each([
+    ['height', 'start', 100001n, false],
+    ['height', 'start', 100000n, true],
+    ['offset', 'start', 99113n, false],
+    ['offset', 'start', 99112n, true],
+    ['height', 'end', 100000n, false],
+    ['height', 'end', 100001n, true],
+    ['offset', 'end', 99112n, false],
+    ['offset', 'end', 99113n, true],
+  ])(
+    'mint for %s %s with value %d is valid=%s',
+    async (heightType, checkType, checkValue, validMint) => {
+      const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+      const tx: UpdaterTx = {
+        txid: 'txid',
+        vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+        vout: [
+          {
+            scriptPubKey: {
+              hex: getDeployRunestoneHex({
+                edicts: [{ id: [876543, 21], amount: 100, output: 1 }],
+                mint: [876543, 21],
+              }),
+            },
+          },
+          MAGIC_EDEN_OUTPUT,
+        ],
+      };
+
+      storage.getValidMintCount.mockResolvedValue(0);
+      storage.getEtching.mockResolvedValue({
+        valid: true,
+        txid: 'txid',
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        terms: { amount: 100n, cap: 1n, [heightType]: { [checkType]: checkValue } },
+      });
+
+      await runeUpdater.indexRunes(tx, 88);
+      expect(runeUpdater.etchings.length).toBe(0);
+      expect(runeUpdater.utxoBalances.length).toBe(validMint ? 1 : 0);
+      if (validMint) {
+        expect(runeUpdater.utxoBalances[0]).toMatchObject({
+          txid: 'txid',
+          vout: 1,
+          rune: 'TESTRUNE',
+          runeId: {
+            block: 876543,
+            tx: 21,
+          },
+          amount: 100n,
+        });
+      }
+    }
+  );
+
+  test.each([
+    [1, true],
+    [3, false],
+  ])(
+    'mint with 2 cap when existing mint is %s is valid=%s',
+    async (existingMintCount, validMint) => {
+      const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+      const tx: UpdaterTx = {
+        txid: 'txid',
+        vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+        vout: [
+          {
+            scriptPubKey: {
+              hex: getDeployRunestoneHex({
+                edicts: [{ id: [876543, 21], amount: 100, output: 1 }],
+                mint: [876543, 21],
+              }),
+            },
+          },
+          MAGIC_EDEN_OUTPUT,
+        ],
+      };
+
+      storage.getValidMintCount.mockResolvedValue(existingMintCount);
+      storage.getEtching.mockResolvedValue({
+        valid: true,
+        txid: 'txid',
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        terms: { amount: 100n, cap: 3n },
+      });
+
+      await runeUpdater.indexRunes(tx, 88);
+      expect(runeUpdater.etchings.length).toBe(0);
+      expect(runeUpdater.utxoBalances.length).toBe(validMint ? 1 : 0);
+      if (validMint) {
+        expect(runeUpdater.utxoBalances[0]).toMatchObject({
+          txid: 'txid',
+          vout: 1,
+          rune: 'TESTRUNE',
+          runeId: {
+            block: 876543,
+            tx: 21,
+          },
+          amount: 100n,
+        });
+      }
+    }
+  );
+
+  test.each([
+    [75, 75n],
+    [100, 100n],
+    [120, 100n],
+  ])(
+    'mint is valid with %s requested mint resulting in %s actual amount',
+    async (requestedAmount, actualAmount) => {
+      const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+      const tx: UpdaterTx = {
+        txid: 'txid',
+        vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+        vout: [
+          {
+            scriptPubKey: {
+              hex: getDeployRunestoneHex({
+                edicts: [{ id: [876543, 21], amount: requestedAmount, output: 1 }],
+                mint: [876543, 21],
+                pointer: 0,
+              }),
+            },
+          },
+          MAGIC_EDEN_OUTPUT,
+        ],
+      };
+
+      storage.getValidMintCount.mockResolvedValue(0);
+      storage.getEtching.mockResolvedValue({
+        valid: true,
+        txid: 'txid',
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        terms: { amount: 100n, cap: 1n },
+      });
+
+      await runeUpdater.indexRunes(tx, 88);
+      expect(runeUpdater.etchings.length).toBe(0);
+      expect(runeUpdater.utxoBalances.length).toBe(1);
+      expect(runeUpdater.utxoBalances[0]).toMatchObject({
+        txid: 'txid',
+        vout: 1,
+        rune: 'TESTRUNE',
+        runeId: {
+          block: 876543,
+          tx: 21,
+        },
+        amount: actualAmount,
+      });
+    }
+  );
+
+  test('mint is valid with amount with multiple outputs', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [
+                { id: [876543, 21], amount: 42, output: 1 },
+                { id: [876543, 21], amount: 58, output: 2 },
+              ],
+              mint: [876543, 21],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getValidMintCount.mockResolvedValue(0);
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 100n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(2);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 876543,
+        tx: 21,
+      },
+      amount: 42n,
+    });
+    expect(runeUpdater.utxoBalances[1]).toMatchObject({
+      txid: 'txid',
+      vout: 2,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 876543,
+        tx: 21,
+      },
+      amount: 58n,
+    });
+  });
 });
 
 describe('edict', () => {
-  test('edict with invalid output is cenotaph', async () => {});
-  test('edict with not all amount goes to native default', async () => {});
-  test('edict with not all amount goes to runestone default', async () => {});
-  test('edict with all outputs with 0 amount', async () => {});
-  test('edict with all outputs with 0 amount after a specified amount beforehand', async () => {});
-  test('edict with all outputs with specified amount', async () => {});
-  test('edict with all outputs with specified amount not enough', async () => {});
+  test('edicts successfully moves runes', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [
+        { txid: 'parenttxid', vout: 0, txinwitness: [] },
+        { txid: 'parenttxid', vout: 1, txinwitness: [] },
+      ],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [
+                { id: [888, 8], amount: 420, output: 1 },
+                { id: [888, 8], amount: 69, output: 2 },
+              ],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 1,
+        amount: 89n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 500n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(2);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 420n,
+    });
+    expect(runeUpdater.utxoBalances[1]).toMatchObject({
+      txid: 'txid',
+      vout: 2,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 69n,
+    });
+  });
+
+  test('edict with invalid output is cenotaph', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({ edicts: [{ id: [888, 8], amount: 400, output: 4 }] }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(0);
+    expect(runeUpdater.burnedBalances).toEqual([
+      {
+        runeId: { block: 888, tx: 8 },
+        amount: 400n,
+      },
+    ]);
+  });
+
+  test('edict with not all amount goes to native default', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({}),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 400n,
+    });
+  });
+
+  test('edict with not all amount goes to runestone default', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({ pointer: 2 }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 2,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 400n,
+    });
+  });
+
+  test('edict with all outputs with 0 amount', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [{ id: [888, 8], amount: 0, output: 5 }],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValue([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(4);
+    for (const i of _.range(4)) {
+      expect(runeUpdater.utxoBalances[i]).toMatchObject({
+        txid: 'txid',
+        vout: i + 1,
+        rune: 'TESTRUNE',
+        runeId: {
+          block: 888,
+          tx: 8,
+        },
+        amount: 100n,
+      });
+    }
+  });
+
+  test('edict with all outputs with 0 amount on not well divisible amount', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [{ id: [888, 8], amount: 0, output: 5 }],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValue([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 402n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 402n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(4);
+    for (const i of _.range(4)) {
+      expect(runeUpdater.utxoBalances[i]).toMatchObject({
+        txid: 'txid',
+        vout: i + 1,
+        rune: 'TESTRUNE',
+        runeId: {
+          block: 888,
+          tx: 8,
+        },
+        amount: [101n, 101n, 100n, 100n][i],
+      });
+    }
+  });
+
+  test('edict with all outputs with 0 amount after a specified amount beforehand', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [
+                { id: [888, 8], amount: 100, output: 1 },
+                { id: [888, 8], amount: 0, output: 5 },
+              ],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValue([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 500n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 500n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(4);
+    for (const i of _.range(4)) {
+      expect(runeUpdater.utxoBalances[i]).toMatchObject({
+        txid: 'txid',
+        vout: i + 1,
+        rune: 'TESTRUNE',
+        runeId: {
+          block: 888,
+          tx: 8,
+        },
+        amount: i === 0 ? 200n : 100n,
+      });
+    }
+  });
+
+  test('edict with all outputs with specified amount', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [{ id: [888, 8], amount: 50, output: 5 }],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValue([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(4);
+    for (const i of _.range(4)) {
+      expect(runeUpdater.utxoBalances[i]).toMatchObject({
+        txid: 'txid',
+        vout: i + 1,
+        rune: 'TESTRUNE',
+        runeId: {
+          block: 888,
+          tx: 8,
+        },
+        amount: i === 0 ? 250n : 50n,
+      });
+    }
+  });
+
+  test('edict with all outputs with specified amount not enough', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({
+              edicts: [{ id: [888, 8], amount: 140, output: 5 }],
+            }),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValue([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(3);
+    for (const i of _.range(3)) {
+      expect(runeUpdater.utxoBalances[i]).toMatchObject({
+        txid: 'txid',
+        vout: i + 1,
+        rune: 'TESTRUNE',
+        runeId: {
+          block: 888,
+          tx: 8,
+        },
+        amount: [140n, 140n, 120n][i],
+      });
+    }
+  });
+});
+
+describe('no runestone', () => {
+  test('all runes get transferred to first output if not op return', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        MAGIC_EDEN_OUTPUT,
+        {
+          scriptPubKey: {
+            hex: Buffer.from([OP_RETURN]).toString('hex'),
+          },
+        },
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 0,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 400n,
+    });
+  });
+
+  test('all runes get transferred to first non op-return output', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: Buffer.from([OP_RETURN]).toString('hex'),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(1);
+    expect(runeUpdater.utxoBalances[0]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      rune: 'TESTRUNE',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      amount: 400n,
+    });
+  });
+});
+
+describe('burning', () => {
+  test('edict to op return is burn', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: {
+            hex: getDeployRunestoneHex({ edicts: [{ id: [888, 8], amount: 400, output: 1 }] }),
+          },
+        },
+        {
+          scriptPubKey: {
+            hex: Buffer.from([OP_RETURN]).toString('hex'),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(0);
+    expect(runeUpdater.burnedBalances).toEqual([
+      {
+        runeId: {
+          block: 888,
+          tx: 8,
+        },
+        amount: 400n,
+      },
+    ]);
+  });
+
+  test('pointer to op return is burn', async () => {
+    const { runeUpdater, storage } = getDefaultRuneUpdaterContext();
+    const tx: UpdaterTx = {
+      txid: 'txid',
+      vin: [{ txid: 'parenttxid', vout: 0, txinwitness: [] }],
+      vout: [
+        {
+          scriptPubKey: { hex: getDeployRunestoneHex({ pointer: 1 }) },
+        },
+        {
+          scriptPubKey: {
+            hex: Buffer.from([OP_RETURN]).toString('hex'),
+          },
+        },
+        MAGIC_EDEN_OUTPUT,
+      ],
+    };
+
+    storage.getUtxoBalance.mockResolvedValueOnce([
+      {
+        txid: 'parenttxid',
+        vout: 0,
+        amount: 400n,
+        rune: 'TESTRUNE',
+        runeId: { block: 888, tx: 8 },
+        scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+        address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      },
+    ]);
+    storage.getEtching.mockResolvedValue({
+      valid: true,
+      txid: 'txid',
+      rune: 'TESTRUNE',
+      runeId: { block: 888, tx: 8 },
+      terms: { amount: 400n, cap: 1n },
+    });
+
+    await runeUpdater.indexRunes(tx, 88);
+    expect(runeUpdater.etchings.length).toBe(0);
+    expect(runeUpdater.utxoBalances.length).toBe(0);
+    expect(runeUpdater.burnedBalances).toEqual([
+      {
+        runeId: {
+          block: 888,
+          tx: 8,
+        },
+        amount: 400n,
+      },
+    ]);
+  });
 });

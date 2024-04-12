@@ -215,7 +215,7 @@ describe('runestone', () => {
     }
 
     expect(runestone.flaws).toEqual([Flaw.UNRECOGNIZED_FLAG, Flaw.UNRECOGNIZED_EVEN_TAG]);
-    expect(runestone.rune.isNone()).toBe(true);
+    expect(runestone.etching.isNone()).toBe(true);
   });
 
   test('decipher_etching_with_term', () => {
