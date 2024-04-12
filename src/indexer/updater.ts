@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { Artifact, isRunestone } from '../artifact';
-import { COMMIT_INTERVAL, OP_RETURN, TAPROOT_ANNEX_PREFIX } from '../constants';
+import {
+  COMMIT_INTERVAL,
+  OP_RETURN,
+  TAPROOT_ANNEX_PREFIX,
+  TAPROOT_SCRIPT_PUBKEY_TYPE,
+} from '../constants';
 import { u128, u32, u64 } from '../integer';
 import { None, Option, Some } from '../monads';
 import { Network } from '../network';
@@ -140,11 +145,10 @@ export class RuneUpdater implements RuneBlockIndex {
             continue;
           }
 
-          let balance = u128(maybeBalance.amount);
           let allocate = (amount: u128, output: number) => {
             if (amount > 0n) {
               const currentAllocated = getAllocatedRuneBalance(output, runeLocation);
-              balance = u128.checkedSubThrow(balance, amount);
+              maybeBalance.amount = u128.checkedSubThrow(u128(maybeBalance.amount), amount);
               currentAllocated.amount = u128.checkedAddThrow(u128(currentAllocated.amount), amount);
             }
           };
@@ -152,13 +156,13 @@ export class RuneUpdater implements RuneBlockIndex {
           if (Number(output) === tx.vout.length) {
             // find non-OP_RETURN outputs
             const destinations = [...tx.vout.entries()]
-              .filter(([_, vout]) => isScriptPubKeyHexOpReturn(vout.scriptPubKey.hex))
+              .filter(([_, vout]) => !isScriptPubKeyHexOpReturn(vout.scriptPubKey.hex))
               .map(([index]) => index);
 
             if (amount === 0n) {
               // if amount is zero, divide balance between eligible outputs
-              const amount = u128(balance / u128(destinations.length));
-              const remainder = balance % u128(destinations.length);
+              const amount = u128(u128(maybeBalance.amount) / u128(destinations.length));
+              const remainder = u128(maybeBalance.amount) % u128(destinations.length);
 
               for (const [i, output] of destinations.entries()) {
                 allocate(i < remainder ? u128.checkedAddThrow(amount, u128(1)) : amount, output);
@@ -166,12 +170,17 @@ export class RuneUpdater implements RuneBlockIndex {
             } else {
               // if amount is non-zero, distribute amount to eligible outputs
               for (const output of destinations) {
-                allocate(amount < balance ? amount : balance, output);
+                allocate(amount < maybeBalance.amount ? amount : u128(maybeBalance.amount), output);
               }
             }
           } else {
             // Get the allocatable amount
-            allocate(amount !== 0n && amount < balance ? amount : balance, Number(output));
+            allocate(
+              amount !== 0n && amount < u128(maybeBalance.amount)
+                ? amount
+                : u128(maybeBalance.amount),
+              Number(output)
+            );
           }
         }
       }
@@ -192,7 +201,7 @@ export class RuneUpdater implements RuneBlockIndex {
     }
 
     if (optionArtifact.isSome() && !isRunestone(optionArtifact.unwrap())) {
-      for (const [id, balance] of unallocated.entries()) {
+      for (const balance of unallocated.values()) {
         const currentBalance = getBurnedRuneBalance(balance.runeId);
         currentBalance.amount = u128.checkedAddThrow(
           u128(currentBalance.amount),
@@ -214,14 +223,14 @@ export class RuneUpdater implements RuneBlockIndex {
         .map((pointer) => Number(pointer))
         .inspect((pointer) => assert(pointer < allocated.length))
         .orElse(() => {
-          const entry = [...tx.vout.entries()].find(([_, txOut]) =>
-            isScriptPubKeyHexOpReturn(txOut.scriptPubKey.hex)
+          const entry = [...tx.vout.entries()].find(
+            ([_, txOut]) => !isScriptPubKeyHexOpReturn(txOut.scriptPubKey.hex)
           );
           return entry !== undefined ? Some(entry[0]) : None;
         });
       if (optionVout.isSome()) {
         const vout = optionVout.unwrap();
-        for (const [id, balance] of unallocated) {
+        for (const balance of unallocated.values()) {
           if (balance.amount > 0) {
             const currentBalance = getAllocatedRuneBalance(vout, balance.runeId);
             currentBalance.amount = u128.checkedAddThrow(
@@ -262,9 +271,19 @@ export class RuneUpdater implements RuneBlockIndex {
         continue;
       }
 
-      for (const [rune, balance] of balances) {
+      const runeByRuneId = new Map(
+        this.etchings.map((etching) => [RuneLocation.toString(etching.runeId), etching.rune])
+      );
+      for (const balance of balances.values()) {
+        const runeIdString = RuneLocation.toString(balance.runeId);
+        const rune =
+          runeByRuneId.get(runeIdString) ?? (await this._storage.getEtching(runeIdString))?.rune;
+        if (rune === undefined) {
+          throw new Error('Rune should exist at this point');
+        }
+
         this.utxoBalances.push({
-          runeId: { block: this.block.height, tx: txIndex },
+          runeId: balance.runeId,
           rune,
           amount: balance.amount,
           scriptPubKey: Buffer.from(output.scriptPubKey.hex),
@@ -275,10 +294,9 @@ export class RuneUpdater implements RuneBlockIndex {
       }
     }
 
-    // increment entries with burned runes
+    // update entries with burned runes
     for (const [id, balance] of burned) {
-      const currentBurned = getBurnedRuneBalance(balance.runeId);
-      currentBurned.amount = u128.checkedAddThrow(u128(currentBurned.amount), u128(balance.amount));
+      this._burnedBalancesByRuneLocation.set(id, balance);
     }
 
     return;
@@ -289,7 +307,20 @@ export class RuneUpdater implements RuneBlockIndex {
     tx: UpdaterTx,
     artifact: Artifact
   ): Promise<Option<{ runeId: RuneLocation; rune: Rune }>> {
-    const optionRune = artifact.rune;
+    let optionRune: Option<Rune>;
+    if (isRunestone(artifact)) {
+      const runestone = artifact;
+      if (runestone.etching.isNone()) {
+        return None;
+      }
+      optionRune = runestone.etching.unwrap().rune;
+    } else {
+      const cenotaph = artifact;
+      if (cenotaph.etching.isNone()) {
+        return None;
+      }
+      optionRune = cenotaph.etching;
+    }
 
     let rune: Rune;
     if (optionRune.isSome()) {
@@ -326,7 +357,7 @@ export class RuneUpdater implements RuneBlockIndex {
     const terms = etching.terms;
 
     const startRelative =
-      terms.offset?.start !== undefined ? this.block.height + Number(terms.offset.start) : null;
+      terms.offset?.start !== undefined ? etching.runeId.block + Number(terms.offset.start) : null;
     const startAbsolute = terms.height?.start !== undefined ? Number(terms.height.start) : null;
     const start =
       startRelative !== null || startAbsolute !== null
@@ -337,7 +368,7 @@ export class RuneUpdater implements RuneBlockIndex {
     }
 
     const endRelative =
-      terms.offset?.end !== undefined ? this.block.height + Number(terms.offset.end) : null;
+      terms.offset?.end !== undefined ? etching.runeId.block + Number(terms.offset.end) : null;
     const endAbsolute = terms.height?.end !== undefined ? Number(terms.height.end) : null;
     const end =
       endRelative !== null || endAbsolute !== null
@@ -427,7 +458,7 @@ export class RuneUpdater implements RuneBlockIndex {
         }
         const inputTx = inputTxResult.result;
 
-        const isTaproot = inputTx.vout[input.vout].scriptPubKey.type === 'witness_v1_taproot';
+        const isTaproot = inputTx.vout[input.vout].scriptPubKey.type === TAPROOT_SCRIPT_PUBKEY_TYPE;
         const mature = (inputTx.confirmations ?? -Infinity) >= COMMIT_INTERVAL;
 
         if (isTaproot && mature) {

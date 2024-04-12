@@ -6,7 +6,7 @@ import { RuneId } from './runeid';
 export class Cenotaph {
   constructor(
     readonly flaws: Flaw[],
-    readonly rune: Option<Rune> = None,
+    readonly etching: Option<Rune> = None,
     readonly mint: Option<RuneId> = None
   ) {}
 }
