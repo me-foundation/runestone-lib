@@ -8,7 +8,12 @@ import { OP_RETURN, TAPROOT_SCRIPT_PUBKEY_TYPE } from '../src/constants';
 import _ from 'lodash';
 
 function getDefaultRuneUpdaterContext() {
-  const block = { hash: 'hash', height: 100_000, previousblockhash: 'previousblockhash' };
+  const block = {
+    hash: 'hash',
+    height: 100_000,
+    previousblockhash: 'previousblockhash',
+    time: 123,
+  };
 
   const storage = mock<RunestoneStorage>();
   storage.getEtching.mockResolvedValue(null);
