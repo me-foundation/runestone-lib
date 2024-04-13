@@ -117,7 +117,11 @@ export class Runestone {
 
           const premine = Tag.take(Tag.PREMINE, fields, 1, ([value]) => Some(value));
 
-          return Some(new Etching(divisibility, rune, spacers, symbol, terms, premine));
+          const turboResult = Flag.take(flags, Flag.TURBO);
+          const turbo = etchingResult.set;
+          flags = turboResult.flags;
+
+          return Some(new Etching(divisibility, rune, spacers, symbol, terms, premine, turbo));
         })()
       : None;
 
@@ -177,6 +181,10 @@ export class Runestone {
 
       if (etching.terms.isSome()) {
         flags = Flag.set(flags, Flag.TERMS);
+      }
+
+      if (etching.turbo) {
+        flags = Flag.set(flags, Flag.TURBO);
       }
 
       payloads.push(Tag.encode(Tag.FLAGS, [flags]));

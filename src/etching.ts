@@ -12,7 +12,8 @@ export class Etching {
     readonly spacers: Option<u32>,
     symbol: Option<string>,
     readonly terms: Option<Terms>,
-    readonly premine: Option<u128>
+    readonly premine: Option<u128>,
+    readonly turbo: boolean
   ) {
     this.symbol = symbol.andThen((value) => {
       const codePoint = value.codePointAt(0);

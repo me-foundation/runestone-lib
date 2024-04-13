@@ -3,6 +3,7 @@ import { u128 } from './integer';
 export enum Flag {
   ETCHING = 0,
   TERMS = 1,
+  TURBO = 2,
   CENOTAPH = 127,
 }
 

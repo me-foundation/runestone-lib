@@ -79,7 +79,7 @@ export type GetBlockReturn<T> = T extends { verbosity: 0 }
   : { tx: string[] } & BitcoinBlock;
 
 export type GetRawTransactionReturn<T> = T extends { verbose: true }
-  ? Tx & { confirmations?: number }
+  ? Tx & { confirmations?: number; blockhash: string }
   : string;
 
 export type RpcResponse<T> =
