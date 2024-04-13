@@ -102,7 +102,7 @@ const SPACERS = ['•', '.'];
  */
 export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
   encodedRune: Buffer;
-  etchingCommitment: string | undefined;
+  etchingCommitment: Buffer | undefined;
 } {
   const mint = runestone.mint
     ? Some(new RuneId(u64Strict(runestone.mint.block), u32Strict(runestone.mint.tx)))
@@ -188,7 +188,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
     const turbo = etchingSpec.turbo ?? false;
 
     etching = Some(new Etching(divisibility, rune, spacers, symbol, terms, premine, turbo));
-    etchingCommitment = parsedRawRune?.commitment;
+    etchingCommitment = (parsedRawRune as Rune)?.commitment;
   }
 
   return {
