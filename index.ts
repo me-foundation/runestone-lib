@@ -1,12 +1,12 @@
-import { None, Option, Some } from './src/monads';
-import { u64, u32, u128, u8 } from './src/integer';
-import { Runestone } from './src/runestone';
-import { RuneEtchingSpec } from './src/indexer';
-import { RuneId } from './src/runeid';
-import { Rune } from './src/rune';
-import { Etching } from './src/etching';
-import { Terms } from './src/terms';
 import { MAX_DIVISIBILITY } from './src/constants';
+import { Etching } from './src/etching';
+import { RuneEtchingSpec } from './src/indexer';
+import { u128, u32, u64, u8 } from './src/integer';
+import { None, Option, Some } from './src/monads';
+import { Rune } from './src/rune';
+import { RuneId } from './src/runeid';
+import { Runestone } from './src/runestone';
+import { Terms } from './src/terms';
 
 export {
   BlockIdentifier,
@@ -24,7 +24,14 @@ export {
   RunestoneStorage,
 } from './src/indexer';
 
+export { Edict } from './src/edict';
+export { Etching } from './src/etching';
 export { Network } from './src/network';
+export { Rune } from './src/rune';
+export { RuneId } from './src/runeid';
+export { Runestone } from './src/runestone';
+export { SpacedRune } from './src/spacedrune';
+export { Terms } from './src/terms';
 
 export {
   BitcoinRpcClient,
