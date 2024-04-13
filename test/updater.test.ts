@@ -5,7 +5,7 @@ import { BitcoinRpcClient } from '../src/rpcclient';
 import { Network } from '../src/network';
 import { MAGIC_EDEN_OUTPUT, getDeployRunestoneHex } from './fixtures';
 import { OP_RETURN, TAPROOT_SCRIPT_PUBKEY_TYPE } from '../src/constants';
-import _ from 'lodash';
+import * as _ from 'lodash';
 
 function getDefaultRuneUpdaterContext() {
   const block = {
