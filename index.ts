@@ -148,7 +148,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
       etchingSpec.divisibility !== undefined ? Some(etchingSpec.divisibility).map(u8Strict) : None;
     const premine =
       etchingSpec.premine !== undefined ? Some(etchingSpec.premine).map(u128Strict) : None;
-    const spacers = hasSpacers ? Some(u32Strict((rune as any as SpacedRune)?.spacers)) : None;
+    const spacers: Option<u32> = hasSpacers && runeSpacers ? Some(u32Strict(runeSpacers)) : None;
     const symbol = etchingSpec.symbol ? Some(etchingSpec.symbol) : None;
 
     if (divisibility.isSome() && divisibility.unwrap() > MAX_DIVISIBILITY) {
