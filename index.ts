@@ -182,7 +182,9 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
       terms = Some({ amount, cap, height, offset });
     }
 
-    etching = Some(new Etching(divisibility, rune, spacers, symbol, terms, premine));
+    const turbo = etchingSpec.turbo ?? false;
+
+    etching = Some(new Etching(divisibility, rune, spacers, symbol, terms, premine, turbo));
   }
 
   return new Runestone(mint, pointer, edicts, etching).encipher();

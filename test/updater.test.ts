@@ -100,9 +100,14 @@ describe('deploy', () => {
     };
     rpc.getrawtransaction.mockResolvedValue({
       result: {
+        blockhash: 'etchingblockhash',
         confirmations: 5,
         vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
+      error: null,
+    });
+    rpc.getblock.mockResolvedValue({
+      result: { height: 99996 } as any,
       error: null,
     });
 
@@ -164,9 +169,13 @@ describe('deploy', () => {
     };
     rpc.getrawtransaction.mockResolvedValue({
       result: {
-        confirmations: 6,
+        blockhash: 'etchingblockhash',
         vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
+      error: null,
+    });
+    rpc.getblock.mockResolvedValue({
+      result: { height: 99995 } as any,
       error: null,
     });
 
@@ -206,9 +215,13 @@ describe('deploy', () => {
     };
     rpc.getrawtransaction.mockResolvedValue({
       result: {
-        confirmations: 6,
+        blockhash: 'etchingblockhash',
         vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
       } as any,
+      error: null,
+    });
+    rpc.getblock.mockResolvedValue({
+      result: { height: 99995 } as any,
       error: null,
     });
 

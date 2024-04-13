@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import { Artifact, isRunestone } from '../artifact';
 import {
-  COMMIT_INTERVAL,
+  COMMIT_CONFIRMATIONS,
   OP_RETURN,
   TAPROOT_ANNEX_PREFIX,
   TAPROOT_SCRIPT_PUBKEY_TYPE,
@@ -455,7 +455,7 @@ export class RuneUpdater implements RuneBlockIndex {
         continue;
       }
 
-      const potentiallyTapscript = witnessStack[lastWitnessElement.length - offset];
+      const potentiallyTapscript = witnessStack[witnessStack.length - offset];
       if (potentiallyTapscript === undefined) {
         continue;
       }
@@ -480,9 +480,20 @@ export class RuneUpdater implements RuneBlockIndex {
         const inputTx = inputTxResult.result;
 
         const isTaproot = inputTx.vout[input.vout].scriptPubKey.type === TAPROOT_SCRIPT_PUBKEY_TYPE;
-        const mature = (inputTx.confirmations ?? -Infinity) >= COMMIT_INTERVAL;
+        if (!isTaproot) {
+          continue;
+        }
 
-        if (isTaproot && mature) {
+        const commitTxHeightResult = await this._rpc.getblock({ blockhash: inputTx.blockhash });
+        if (commitTxHeightResult.error !== null) {
+          throw commitTxHeightResult.error;
+        }
+        const commitTxHeight = commitTxHeightResult.result.height;
+
+        const confirmations =
+          u128.checkedSubThrow(u128(this.block.height), u128(commitTxHeight)) + 1n;
+
+        if (confirmations >= COMMIT_CONFIRMATIONS) {
           return true;
         }
       }

@@ -69,7 +69,8 @@ export function getDeployRunestoneHex({
                   ],
                 })
               : None,
-            etching.premine !== undefined ? Some(u128(etching.premine)) : None
+            etching.premine !== undefined ? Some(u128(etching.premine)) : None,
+            false
           )
         )
       : None

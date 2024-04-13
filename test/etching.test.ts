@@ -23,7 +23,7 @@ describe('etching', () => {
     [Some(u128.MAX), Some({ cap: Some(ONE), amount: Some(ONE) }), None as Option<u128>],
     [Some(ZERO), Some({ cap: Some(ONE), amount: Some(u128.MAX) }), Some(u128.MAX)],
   ])('supply', (premine: Option<u128>, terms: Option<Terms>, supply: Option<u128>) => {
-    expect(new Etching(None, None, None, None, terms, premine).supply).toEqual(supply);
+    expect(new Etching(None, None, None, None, terms, premine, false).supply).toEqual(supply);
   });
 });
 

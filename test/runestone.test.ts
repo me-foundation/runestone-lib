@@ -766,11 +766,17 @@ describe('runestone', () => {
 
     testcase([], None, 2);
 
-    testcase([], Some(new Etching(None, Some(new Rune(u128(0))), None, None, None, None)), 7);
+    testcase(
+      [],
+      Some(new Etching(None, Some(new Rune(u128(0))), None, None, None, None, false)),
+      7
+    );
 
     testcase(
       [],
-      Some(new Etching(Some(MAX_DIVISIBILITY), Some(new Rune(u128(0))), None, None, None, None)),
+      Some(
+        new Etching(Some(MAX_DIVISIBILITY), Some(new Rune(u128(0))), None, None, None, None, false)
+      ),
       9
     );
 
@@ -788,13 +794,18 @@ describe('runestone', () => {
             offset: [Some(u64.MAX), Some(u64.MAX)],
             height: [Some(u64.MAX), Some(u64.MAX)],
           }),
-          None
+          None,
+          false
         )
       ),
       104
     );
 
-    testcase([], Some(new Etching(None, Some(new Rune(u128.MAX)), None, None, None, None)), 25);
+    testcase(
+      [],
+      Some(new Etching(None, Some(new Rune(u128.MAX)), None, None, None, None, false)),
+      25
+    );
 
     testcase(
       [
@@ -804,7 +815,9 @@ describe('runestone', () => {
           output: u32(0),
         },
       ],
-      Some(new Etching(Some(MAX_DIVISIBILITY), Some(new Rune(u128.MAX)), None, None, None, None)),
+      Some(
+        new Etching(Some(MAX_DIVISIBILITY), Some(new Rune(u128.MAX)), None, None, None, None, false)
+      ),
       32
     );
 
@@ -816,7 +829,9 @@ describe('runestone', () => {
           output: u32(0),
         },
       ],
-      Some(new Etching(Some(MAX_DIVISIBILITY), Some(new Rune(u128.MAX)), None, None, None, None)),
+      Some(
+        new Etching(Some(MAX_DIVISIBILITY), Some(new Rune(u128.MAX)), None, None, None, None, false)
+      ),
       50
     );
 
@@ -1058,7 +1073,8 @@ describe('runestone', () => {
               amount: Some(u128(14)),
               offset: [Some(u64(15)), Some(u64(16))],
             }),
-            Some(u128(8))
+            Some(u128(8)),
+            false
           )
         )
       ),
@@ -1110,15 +1126,15 @@ describe('runestone', () => {
         None,
         None,
         [],
-        Some(new Etching(None, Some(new Rune(u128(3))), None, None, None, None))
+        Some(new Etching(None, Some(new Rune(u128(3))), None, None, None, None, false))
       ),
       [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, 3]
     );
 
-    testcase(new Runestone(None, None, [], Some(new Etching(None, None, None, None, None, None))), [
-      Tag.FLAGS,
-      Flag.mask(Flag.ETCHING),
-    ]);
+    testcase(
+      new Runestone(None, None, [], Some(new Etching(None, None, None, None, None, None, false))),
+      [Tag.FLAGS, Flag.mask(Flag.ETCHING)]
+    );
   });
 
   test('runestone_payload_is_chunked', () => {
