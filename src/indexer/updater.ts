@@ -455,7 +455,7 @@ export class RuneUpdater implements RuneBlockIndex {
         continue;
       }
 
-      const potentiallyTapscript = witnessStack[lastWitnessElement.length - offset];
+      const potentiallyTapscript = witnessStack[witnessStack.length - offset];
       if (potentiallyTapscript === undefined) {
         continue;
       }
