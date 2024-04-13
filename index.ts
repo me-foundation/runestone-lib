@@ -6,6 +6,7 @@ import { None, Option, Some } from './src/monads';
 import { Rune } from './src/rune';
 import { RuneId } from './src/runeid';
 import { Runestone } from './src/runestone';
+import { SpacedRune } from './src/spacedrune';
 import { Terms } from './src/terms';
 
 export {
@@ -30,7 +31,6 @@ export { Network } from './src/network';
 export { Rune } from './src/rune';
 export { RuneId } from './src/runeid';
 export { Runestone } from './src/runestone';
-export { SpacedRune } from './src/spacedrune';
 export { Terms } from './src/terms';
 
 export {
@@ -137,7 +137,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
       etchingSpec.premine !== undefined ? Some(etchingSpec.premine).map(u128Strict) : None;
     const rune =
       etchingSpec.rune !== undefined
-        ? Some(etchingSpec.rune).map((rune) => Rune.fromString(rune))
+        ? Some(etchingSpec.rune).map((rune) => etchingSpec.spacers?.length ? SpacedRune.fromString(rune) : Rune.fromString(rune))
         : None;
     const spacers = etchingSpec.spacers
       ? Some(
