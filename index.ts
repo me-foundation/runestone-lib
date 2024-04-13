@@ -24,6 +24,8 @@ export {
   RunestoneStorage,
 } from './src/indexer';
 
+export { u128, u32, u64, u8 } from './src/integer';
+
 export { Edict } from './src/edict';
 export { Etching } from './src/etching';
 export { Network } from './src/network';
