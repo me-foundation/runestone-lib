@@ -90,6 +90,7 @@ const u128Strict = (n: bigint) => {
   return u128(bigN);
 };
 
+// TODO: Add unit tests
 /**
  * Low level function to allow for encoding runestones without any indexer and transaction checks.
  *
@@ -147,7 +148,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
       : None;
     const symbol = etchingSpec.symbol ? Some(etchingSpec.symbol) : None;
 
-    if (divisibility.isSome() && divisibility.unwrap() < MAX_DIVISIBILITY) {
+    if (divisibility.isSome() && divisibility.unwrap() > MAX_DIVISIBILITY) {
       throw Error(`Divisibility is greater than protocol max ${MAX_DIVISIBILITY}`);
     }
 
