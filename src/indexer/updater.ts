@@ -455,8 +455,12 @@ export class RuneUpdater implements RuneBlockIndex {
         continue;
       }
 
-      const inscructions = script.decompile(witnessStack[lastWitnessElement.length - offset]);
-      for (const instruction of inscructions) {
+      const potentiallyTapscript = witnessStack[lastWitnessElement.length - offset];
+      if (potentiallyTapscript === undefined) {
+        continue;
+      }
+      const instructions = script.decompile(potentiallyTapscript);
+      for (const instruction of instructions) {
         if (!Buffer.isBuffer(instruction)) {
           continue;
         }

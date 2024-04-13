@@ -83,7 +83,7 @@ export class RunestoneIndexer {
     const newBlockhashesToIndex: string[] = [];
 
     const currentStorageBlock = await this._storage.getCurrentBlock();
-    if (currentStorageBlock != null) {
+    if (currentStorageBlock !== null) {
       // If rpc block indexing is ahead of our storage, let's save up all block hashes
       // until we arrive back to the current storage's block tip.
       const bestblockhashResult = await this._rpc.getbestblockhash();
