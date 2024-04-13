@@ -136,6 +136,7 @@ export type RuneEtchingSpec = {
       end?: bigint;
     };
   };
+  turbo?: boolean;
 };
 
 export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingSpec)) & {
