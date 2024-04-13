@@ -137,7 +137,9 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): Buffer {
       etchingSpec.premine !== undefined ? Some(etchingSpec.premine).map(u128Strict) : None;
     const rune =
       etchingSpec.rune !== undefined
-        ? Some(etchingSpec.rune).map((rune) => etchingSpec.spacers?.length ? SpacedRune.fromString(rune) : Rune.fromString(rune))
+        ? Some(etchingSpec.rune).map((rune) =>
+            etchingSpec.spacers?.length ? SpacedRune.fromString(rune).rune : Rune.fromString(rune)
+          )
         : None;
     const spacers = etchingSpec.spacers
       ? Some(
