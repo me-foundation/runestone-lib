@@ -29,6 +29,7 @@ export { Edict } from './src/edict';
 export { Etching } from './src/etching';
 export { Network } from './src/network';
 export { Rune } from './src/rune';
+export { SpacedRune } from './src/spacedrune';
 export { RuneId } from './src/runeid';
 export { Runestone } from './src/runestone';
 export { Terms } from './src/terms';
