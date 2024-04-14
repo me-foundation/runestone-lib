@@ -24,6 +24,7 @@ import {
   RuneUtxoBalance,
   RunestoneStorage,
 } from './types';
+import { SpacedRune } from '../spacedrune';
 
 function isScriptPubKeyHexOpReturn(scriptPubKeyHex: string) {
   return scriptPubKeyHex && Buffer.from(scriptPubKeyHex, 'hex')[0] === OP_RETURN;
@@ -330,6 +331,7 @@ export class RuneUpdater implements RuneBlockIndex {
       if (
         rune.value < this._minimum.value ||
         rune.reserved ||
+        this.etchings.find((etching) => etching.rune === rune.toString()) ||
         (await this._storage.getRuneLocation(rune.toString())) !== null ||
         !(await this.txCommitsToRune(tx, rune))
       ) {
@@ -507,26 +509,12 @@ export class RuneUpdater implements RuneBlockIndex {
       const { divisibility, terms, premine, spacers, symbol } = artifact.etching.unwrap();
       this.etchings.push({
         valid: true,
-        rune: rune.toString(),
+        rune: new SpacedRune(rune, Number(spacers.map(Number).unwrapOr(0))).toString(),
         runeId,
         txid,
         ...(divisibility.isSome() ? { divisibility: divisibility.map(Number).unwrap() } : {}),
         ...(premine.isSome() ? { premine: premine.unwrap() } : {}),
         ...(symbol.isSome() ? { symbol: symbol.unwrap() } : {}),
-        ...(spacers.isSome()
-          ? {
-              spacers: (() => {
-                const spacersNumber = Number(spacers.unwrap());
-                const spacersArray: number[] = [];
-                for (const [i] of new Array(32).entries()) {
-                  if ((spacersNumber & (1 << i)) !== 0) {
-                    spacersArray.push(i);
-                  }
-                }
-                return spacersArray;
-              })(),
-            }
-          : {}),
         ...(terms.isSome()
           ? {
               terms: (() => {

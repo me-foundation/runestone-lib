@@ -118,7 +118,7 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
   }));
 
   let etching: Option<Etching> = None;
-  let etchingCommitment: string | undefined = undefined;
+  let etchingCommitment: Buffer | undefined = undefined;
   if (runestone.etching) {
     const etchingSpec = runestone.etching;
     let hasSpacers = false;
@@ -141,7 +141,11 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
     const rune: Option<Rune> =
       parsedRawRune !== undefined ? Some(parsedRawRune).map(() => parsedRawRune!) : None;
 
-    if (etchingSpec.symbol && etchingSpec.symbol.codePointAt(1) !== undefined) {
+    if (
+      etchingSpec.symbol &&
+      (etchingSpec.symbol.length === 1 ||
+        (etchingSpec.symbol.length === 2 && etchingSpec.symbol.codePointAt(0)! >= 0x10000))
+    ) {
       throw Error('Symbol must be one code point');
     }
 
