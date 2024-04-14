@@ -40,8 +40,7 @@ export class RunestoneIndexer {
     if (this._network === Network.MAINNET) {
       this._storage.seedEtchings([
         {
-          rune: 'UNCOMMONGOODS',
-          spacedRune: 'UNCOMMON•GOODS',
+          rune: 'UNCOMMON•GOODS',
           runeId: { block: 1, tx: 0 },
           txid: '0000000000000000000000000000000000000000000000000000000000000000',
           valid: true,

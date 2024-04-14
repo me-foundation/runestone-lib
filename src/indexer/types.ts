@@ -137,12 +137,11 @@ export type RuneEtchingBase = {
   turbo?: boolean;
 };
 
-export type RuneEtchingSpec = RuneEtchingBase & { spacedRune?: string };
+export type RuneEtchingSpec = RuneEtchingBase & { rune?: string };
 
 export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingBase)) & {
   runeId: RuneLocation;
   rune: string;
-  spacedRune: string;
   txid: string;
 };
 

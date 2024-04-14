@@ -509,10 +509,7 @@ export class RuneUpdater implements RuneBlockIndex {
       const { divisibility, terms, premine, spacers, symbol } = artifact.etching.unwrap();
       this.etchings.push({
         valid: true,
-        rune: rune.toString(),
-        spacedRune: spacers.isSome()
-          ? new SpacedRune(rune, Number(spacers.unwrap())).toString()
-          : rune.toString(),
+        rune: new SpacedRune(rune, Number(spacers.map(Number).unwrapOr(0))).toString(),
         runeId,
         txid,
         ...(divisibility.isSome() ? { divisibility: divisibility.map(Number).unwrap() } : {}),
@@ -564,7 +561,6 @@ export class RuneUpdater implements RuneBlockIndex {
         runeId,
         txid,
         rune: rune.toString(),
-        spacedRune: rune.toString(),
       });
     }
   }
