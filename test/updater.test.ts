@@ -466,6 +466,7 @@ describe('mint', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 100n, cap: 1n },
     });
@@ -519,6 +520,7 @@ describe('mint', () => {
         valid: true,
         txid: 'txid',
         rune: 'TESTRUNE',
+        spacedRune: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         terms: { amount: 100n, cap: 1n, [heightType]: { [checkType]: checkValue } },
       });
@@ -569,6 +571,7 @@ describe('mint', () => {
         valid: true,
         txid: 'txid',
         rune: 'TESTRUNE',
+        spacedRune: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         terms: { amount: 100n, cap: 3n },
       });
@@ -621,6 +624,7 @@ describe('mint', () => {
         valid: true,
         txid: 'txid',
         rune: 'TESTRUNE',
+        spacedRune: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         terms: { amount: 100n, cap: 1n },
       });
@@ -668,6 +672,7 @@ describe('mint', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 100n, cap: 1n },
     });
@@ -802,6 +807,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 500n, cap: 1n },
     });
@@ -867,6 +873,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 500n, cap: 1n },
     });
@@ -933,6 +940,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -980,6 +988,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1031,6 +1040,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1086,6 +1096,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1143,6 +1154,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 402n, cap: 1n },
     });
@@ -1203,6 +1215,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 500n, cap: 1n },
     });
@@ -1260,6 +1273,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1317,6 +1331,7 @@ describe('edict', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1370,6 +1385,7 @@ describe('no runestone', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1419,6 +1435,7 @@ describe('no runestone', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1475,6 +1492,7 @@ describe('burning', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });
@@ -1526,6 +1544,7 @@ describe('burning', () => {
       valid: true,
       txid: 'txid',
       rune: 'TESTRUNE',
+      spacedRune: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
     });

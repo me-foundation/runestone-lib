@@ -118,8 +118,7 @@ export type RuneUtxoBalance = {
 export type RuneMintCount = { mint: RuneLocation; count: number };
 export type RuneBalance = { runeId: RuneLocation; amount: bigint };
 
-export type RuneEtchingSpec = {
-  rune?: string;
+export type RuneEtchingBase = {
   divisibility?: number;
   premine?: bigint;
   symbol?: string;
@@ -138,9 +137,12 @@ export type RuneEtchingSpec = {
   turbo?: boolean;
 };
 
-export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingSpec)) & {
+export type RuneEtchingSpec = RuneEtchingBase & { spacedRune?: string };
+
+export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingBase)) & {
   runeId: RuneLocation;
   rune: string;
+  spacedRune: string;
   txid: string;
 };
 

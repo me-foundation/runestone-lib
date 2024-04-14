@@ -118,12 +118,12 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
   }));
 
   let etching: Option<Etching> = None;
-  let etchingCommitment: string | undefined = undefined;
+  let etchingCommitment: Buffer | undefined = undefined;
   if (runestone.etching) {
     const etchingSpec = runestone.etching;
     let hasSpacers = false;
     for (const spacer of SPACERS) {
-      if (runestone.etching?.rune?.includes(spacer)) {
+      if (runestone.etching?.spacedRune?.includes(spacer)) {
         hasSpacers = true;
         break;
       }
@@ -132,11 +132,13 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
     let runeSpacers: number | undefined = undefined;
     let parsedRawRune: Rune | undefined = undefined;
     if (hasSpacers) {
-      const spacedRune = etchingSpec.rune ? SpacedRune.fromString(etchingSpec.rune) : undefined;
+      const spacedRune = etchingSpec.spacedRune
+        ? SpacedRune.fromString(etchingSpec.spacedRune)
+        : undefined;
       runeSpacers = spacedRune?.spacers;
       parsedRawRune = spacedRune?.rune;
     } else {
-      parsedRawRune = etchingSpec.rune ? Rune.fromString(etchingSpec.rune) : undefined;
+      parsedRawRune = etchingSpec.spacedRune ? Rune.fromString(etchingSpec.spacedRune) : undefined;
     }
     const rune: Option<Rune> =
       parsedRawRune !== undefined ? Some(parsedRawRune).map(() => parsedRawRune!) : None;
