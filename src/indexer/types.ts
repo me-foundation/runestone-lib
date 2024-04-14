@@ -122,7 +122,6 @@ export type RuneEtchingSpec = {
   rune?: string;
   divisibility?: number;
   premine?: bigint;
-  spacers?: number[];
   symbol?: string;
   terms?: {
     cap?: bigint;
