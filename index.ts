@@ -143,8 +143,10 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
 
     if (
       etchingSpec.symbol &&
-      (etchingSpec.symbol.length === 1 ||
-        (etchingSpec.symbol.length === 2 && etchingSpec.symbol.codePointAt(0)! >= 0x10000))
+      !(
+        etchingSpec.symbol.length === 1 ||
+        (etchingSpec.symbol.length === 2 && etchingSpec.symbol.codePointAt(0)! >= 0x10000)
+      )
     ) {
       throw Error('Symbol must be one code point');
     }
