@@ -25,14 +25,7 @@ export {
   RunestoneStorage,
 } from './src/indexer';
 
-export { Edict } from './src/edict';
-export { Etching } from './src/etching';
 export { Network } from './src/network';
-export { Rune } from './src/rune';
-export { SpacedRune } from './src/spacedrune';
-export { RuneId } from './src/runeid';
-export { Runestone } from './src/runestone';
-export { Terms } from './src/terms';
 
 export {
   BitcoinRpcClient,
@@ -101,9 +94,9 @@ const SPACERS = ['•', '.'];
  * @returns encoded runestone bytes
  * @throws Error if encoding is detected to be considered a cenotaph
  */
-export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
-  encodedRune: Buffer;
-  etchingCommitment: Buffer | undefined;
+export function encodeRunestone(runestone: RunestoneSpec): {
+  encodedRunestone: Buffer;
+  etchingCommitment?: Buffer;
 } {
   const mint = runestone.mint
     ? Some(new RuneId(u64Strict(runestone.mint.block), u32Strict(runestone.mint.tx)))
@@ -121,25 +114,11 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
   let etchingCommitment: Buffer | undefined = undefined;
   if (runestone.etching) {
     const etchingSpec = runestone.etching;
-    let hasSpacers = false;
-    for (const spacer of SPACERS) {
-      if (runestone.etching?.rune?.includes(spacer)) {
-        hasSpacers = true;
-        break;
-      }
-    }
 
-    let runeSpacers: number | undefined = undefined;
-    let parsedRawRune: Rune | undefined = undefined;
-    if (hasSpacers) {
-      const spacedRune = etchingSpec.rune ? SpacedRune.fromString(etchingSpec.rune) : undefined;
-      runeSpacers = spacedRune?.spacers;
-      parsedRawRune = spacedRune?.rune;
-    } else {
-      parsedRawRune = etchingSpec.rune ? Rune.fromString(etchingSpec.rune) : undefined;
-    }
-    const rune: Option<Rune> =
-      parsedRawRune !== undefined ? Some(parsedRawRune).map(() => parsedRawRune!) : None;
+    const spacedRune = etchingSpec.runeName
+      ? SpacedRune.fromString(etchingSpec.runeName)
+      : undefined;
+    const rune = spacedRune?.rune !== undefined ? Some(spacedRune.rune) : None;
 
     if (
       etchingSpec.symbol &&
@@ -155,7 +134,10 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
       etchingSpec.divisibility !== undefined ? Some(etchingSpec.divisibility).map(u8Strict) : None;
     const premine =
       etchingSpec.premine !== undefined ? Some(etchingSpec.premine).map(u128Strict) : None;
-    const spacers: Option<u32> = hasSpacers && runeSpacers ? Some(u32Strict(runeSpacers)) : None;
+    const spacers =
+      spacedRune?.spacers !== undefined && spacedRune.spacers !== 0
+        ? Some(u32Strict(spacedRune.spacers))
+        : None;
     const symbol = etchingSpec.symbol ? Some(etchingSpec.symbol) : None;
 
     if (divisibility.isSome() && divisibility.unwrap() > MAX_DIVISIBILITY) {
@@ -195,11 +177,11 @@ export function encodeRunestoneUnsafe(runestone: RunestoneSpec): {
     const turbo = etchingSpec.turbo ?? false;
 
     etching = Some(new Etching(divisibility, rune, spacers, symbol, terms, premine, turbo));
-    etchingCommitment = (parsedRawRune as Rune)?.commitment;
+    etchingCommitment = rune.isSome() ? rune.unwrap().commitment : undefined;
   }
 
   return {
-    encodedRune: new Runestone(mint, pointer, edicts, etching).encipher(),
+    encodedRunestone: new Runestone(mint, pointer, edicts, etching).encipher(),
     etchingCommitment,
   };
 }
