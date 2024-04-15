@@ -287,7 +287,6 @@ export class RuneUpdater implements RuneBlockIndex {
         this.utxoBalances.push({
           runeId: balance.runeId,
           runeTicker: etching.runeTicker,
-          runeName: etching.runeName,
           amount: balance.amount,
           scriptPubKey: Buffer.from(output.scriptPubKey.hex),
           txid: tx.txid,
