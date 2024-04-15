@@ -111,7 +111,6 @@ export type RuneUtxoBalance = {
   address?: string;
   scriptPubKey: Buffer;
   runeId: RuneLocation;
-  runeName: string;
   runeTicker: string;
   amount: bigint;
 };
@@ -142,8 +141,8 @@ export type RuneEtchingSpec = RuneEtchingBase & { runeName?: string };
 
 export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingBase)) & {
   runeId: RuneLocation;
-  runeName: string;
   runeTicker: string;
+  runeName: string;
   txid: string;
 };
 
