@@ -273,21 +273,21 @@ export class RuneUpdater implements RuneBlockIndex {
         continue;
       }
 
-      const runeNameByRuneId = new Map(
-        this.etchings.map((etching) => [RuneLocation.toString(etching.runeId), etching.runeName])
+      const etchingByRuneId = new Map(
+        this.etchings.map((etching) => [RuneLocation.toString(etching.runeId), etching])
       );
       for (const balance of balances.values()) {
         const runeIdString = RuneLocation.toString(balance.runeId);
-        const runeName =
-          runeNameByRuneId.get(runeIdString) ??
-          (await this._storage.getEtching(runeIdString))?.runeName;
-        if (runeName === undefined) {
+        const etching =
+          etchingByRuneId.get(runeIdString) ?? (await this._storage.getEtching(runeIdString));
+        if (etching === null) {
           throw new Error('Rune should exist at this point');
         }
 
         this.utxoBalances.push({
           runeId: balance.runeId,
-          runeName,
+          runeTicker: etching.runeTicker,
+          runeName: etching.runeName,
           amount: balance.amount,
           scriptPubKey: Buffer.from(output.scriptPubKey.hex),
           txid: tx.txid,
@@ -512,6 +512,7 @@ export class RuneUpdater implements RuneBlockIndex {
       const { divisibility, terms, premine, spacers, symbol } = artifact.etching.unwrap();
       this.etchings.push({
         valid: true,
+        runeTicker: rune.toString(),
         runeName: new SpacedRune(rune, Number(spacers.map(Number).unwrapOr(0))).toString(),
         runeId,
         txid,
@@ -563,6 +564,7 @@ export class RuneUpdater implements RuneBlockIndex {
         valid: false,
         runeId,
         txid,
+        runeTicker: rune.toString(),
         runeName: rune.toString(),
       });
     }

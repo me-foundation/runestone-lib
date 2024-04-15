@@ -55,7 +55,7 @@ export interface RunestoneStorage {
    */
   getValidMintCount(runeLocation: string, blockhash: string): Promise<number>;
 
-  getRuneLocation(rune: string): Promise<RuneLocation | null>;
+  getRuneLocation(runeTicker: string): Promise<RuneLocation | null>;
 
   /**
    * Get the rune balances for the given UTXO.
@@ -112,6 +112,7 @@ export type RuneUtxoBalance = {
   scriptPubKey: Buffer;
   runeId: RuneLocation;
   runeName: string;
+  runeTicker: string;
   amount: bigint;
 };
 
@@ -137,11 +138,12 @@ export type RuneEtchingBase = {
   turbo?: boolean;
 };
 
-export type RuneEtchingSpec = RuneEtchingBase & { rune?: string };
+export type RuneEtchingSpec = RuneEtchingBase & { runeName?: string };
 
 export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingBase)) & {
   runeId: RuneLocation;
   runeName: string;
+  runeTicker: string;
   txid: string;
 };
 

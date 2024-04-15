@@ -181,7 +181,7 @@ describe('deploy', () => {
 
     await runeUpdater.indexRunes(tx, 88);
     expect(runeUpdater.etchings.length).toBe(1);
-    expect(runeUpdater.etchings[0]).toMatchObject({ valid: true, rune: 'AAAAAAAAAAAAAA' });
+    expect(runeUpdater.etchings[0]).toMatchObject({ valid: true, runeTicker: 'AAAAAAAAAAAAAA' });
   });
 
   test('deploy is successful due to no commitment and rune unspecified', async () => {
@@ -196,7 +196,7 @@ describe('deploy', () => {
     expect(runeUpdater.etchings.length).toBe(1);
     expect(runeUpdater.etchings[0]).toMatchObject({
       valid: true,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
     });
   });
 
@@ -229,7 +229,7 @@ describe('deploy', () => {
     expect(runeUpdater.etchings.length).toBe(1);
     expect(runeUpdater.etchings[0]).toMatchObject({
       valid: false,
-      rune: 'AAAAAAAAAAAAAA',
+      runeTicker: 'AAAAAAAAAAAAAA',
     });
   });
 
@@ -257,7 +257,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -296,7 +296,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -306,7 +306,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[1]).toMatchObject({
       txid: 'txid',
       vout: 2,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -316,7 +316,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[2]).toMatchObject({
       txid: 'txid',
       vout: 3,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -349,7 +349,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -385,7 +385,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -422,7 +422,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -432,7 +432,7 @@ describe('deploy', () => {
     expect(runeUpdater.utxoBalances[1]).toMatchObject({
       txid: 'txid',
       vout: 2,
-      rune: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
+      runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGCU',
       runeId: {
         block: 100000,
         tx: 88,
@@ -465,6 +465,7 @@ describe('mint', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 100n, cap: 1n },
@@ -476,6 +477,7 @@ describe('mint', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 876543,
@@ -518,6 +520,7 @@ describe('mint', () => {
       storage.getEtching.mockResolvedValue({
         valid: true,
         txid: 'txid',
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         terms: { amount: 100n, cap: 1n, [heightType]: { [checkType]: checkValue } },
@@ -530,6 +533,7 @@ describe('mint', () => {
         expect(runeUpdater.utxoBalances[0]).toMatchObject({
           txid: 'txid',
           vout: 1,
+          runeTicker: 'TESTRUNE',
           runeName: 'TESTRUNE',
           runeId: {
             block: 876543,
@@ -568,6 +572,7 @@ describe('mint', () => {
       storage.getEtching.mockResolvedValue({
         valid: true,
         txid: 'txid',
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         terms: { amount: 100n, cap: 3n },
@@ -580,6 +585,7 @@ describe('mint', () => {
         expect(runeUpdater.utxoBalances[0]).toMatchObject({
           txid: 'txid',
           vout: 1,
+          runeTicker: 'TESTRUNE',
           runeName: 'TESTRUNE',
           runeId: {
             block: 876543,
@@ -620,6 +626,7 @@ describe('mint', () => {
       storage.getEtching.mockResolvedValue({
         valid: true,
         txid: 'txid',
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         terms: { amount: 100n, cap: 1n },
@@ -631,6 +638,7 @@ describe('mint', () => {
       expect(runeUpdater.utxoBalances[0]).toMatchObject({
         txid: 'txid',
         vout: 1,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: {
           block: 876543,
@@ -667,6 +675,7 @@ describe('mint', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 100n, cap: 1n },
@@ -678,6 +687,7 @@ describe('mint', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 876543,
@@ -688,6 +698,7 @@ describe('mint', () => {
     expect(runeUpdater.utxoBalances[1]).toMatchObject({
       txid: 'txid',
       vout: 2,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 876543,
@@ -742,7 +753,7 @@ test('mint is valid for etching in same block', async () => {
   expect(runeUpdater.utxoBalances[0]).toMatchObject({
     txid: 'txid2',
     vout: 1,
-    rune: 'AAAAAAAAAAAAAAAADBCSMALNGAF',
+    runeTicker: 'AAAAAAAAAAAAAAAADBCSMALNGAF',
     runeId: {
       block: 100000,
       tx: 21,
@@ -781,6 +792,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -792,6 +804,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 1,
         amount: 89n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -801,6 +814,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 500n, cap: 1n },
@@ -812,6 +826,7 @@ describe('edict', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -822,6 +837,7 @@ describe('edict', () => {
     expect(runeUpdater.utxoBalances[1]).toMatchObject({
       txid: 'txid',
       vout: 2,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -856,6 +872,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -866,6 +883,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 500n, cap: 1n },
@@ -878,6 +896,7 @@ describe('edict', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -888,6 +907,7 @@ describe('edict', () => {
     expect(runeUpdater.utxoBalances[1]).toMatchObject({
       txid: 'childtxid',
       vout: 0,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -922,6 +942,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -932,6 +953,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -969,6 +991,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -979,6 +1002,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -990,6 +1014,7 @@ describe('edict', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -1020,6 +1045,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1030,6 +1056,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -1041,6 +1068,7 @@ describe('edict', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 2,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -1075,6 +1103,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1085,6 +1114,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -1097,6 +1127,7 @@ describe('edict', () => {
       expect(runeUpdater.utxoBalances[i]).toMatchObject({
         txid: 'txid',
         vout: i + 1,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: {
           block: 888,
@@ -1132,6 +1163,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 402n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1142,6 +1174,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 402n, cap: 1n },
@@ -1154,6 +1187,7 @@ describe('edict', () => {
       expect(runeUpdater.utxoBalances[i]).toMatchObject({
         txid: 'txid',
         vout: i + 1,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: {
           block: 888,
@@ -1192,6 +1226,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 500n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1202,6 +1237,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 500n, cap: 1n },
@@ -1214,6 +1250,7 @@ describe('edict', () => {
       expect(runeUpdater.utxoBalances[i]).toMatchObject({
         txid: 'txid',
         vout: i + 1,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: {
           block: 888,
@@ -1249,6 +1286,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1259,6 +1297,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -1271,6 +1310,7 @@ describe('edict', () => {
       expect(runeUpdater.utxoBalances[i]).toMatchObject({
         txid: 'txid',
         vout: i + 1,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: {
           block: 888,
@@ -1306,6 +1346,7 @@ describe('edict', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1316,6 +1357,7 @@ describe('edict', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -1328,6 +1370,7 @@ describe('edict', () => {
       expect(runeUpdater.utxoBalances[i]).toMatchObject({
         txid: 'txid',
         vout: i + 1,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: {
           block: 888,
@@ -1360,6 +1403,7 @@ describe('no runestone', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1369,6 +1413,7 @@ describe('no runestone', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -1380,6 +1425,7 @@ describe('no runestone', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 0,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -1409,6 +1455,7 @@ describe('no runestone', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1418,6 +1465,7 @@ describe('no runestone', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -1429,6 +1477,7 @@ describe('no runestone', () => {
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: {
         block: 888,
@@ -1465,6 +1514,7 @@ describe('burning', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1474,6 +1524,7 @@ describe('burning', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
@@ -1516,6 +1567,7 @@ describe('burning', () => {
         txid: 'parenttxid',
         vout: 0,
         amount: 400n,
+        runeTicker: 'TESTRUNE',
         runeName: 'TESTRUNE',
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
@@ -1525,6 +1577,7 @@ describe('burning', () => {
     storage.getEtching.mockResolvedValue({
       valid: true,
       txid: 'txid',
+      runeTicker: 'TESTRUNE',
       runeName: 'TESTRUNE',
       runeId: { block: 888, tx: 8 },
       terms: { amount: 400n, cap: 1n },
