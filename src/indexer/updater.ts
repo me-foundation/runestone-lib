@@ -273,20 +273,21 @@ export class RuneUpdater implements RuneBlockIndex {
         continue;
       }
 
-      const runeByRuneId = new Map(
-        this.etchings.map((etching) => [RuneLocation.toString(etching.runeId), etching.rune])
+      const runeNameByRuneId = new Map(
+        this.etchings.map((etching) => [RuneLocation.toString(etching.runeId), etching.runeName])
       );
       for (const balance of balances.values()) {
         const runeIdString = RuneLocation.toString(balance.runeId);
-        const rune =
-          runeByRuneId.get(runeIdString) ?? (await this._storage.getEtching(runeIdString))?.rune;
-        if (rune === undefined) {
+        const runeName =
+          runeNameByRuneId.get(runeIdString) ??
+          (await this._storage.getEtching(runeIdString))?.runeName;
+        if (runeName === undefined) {
           throw new Error('Rune should exist at this point');
         }
 
         this.utxoBalances.push({
           runeId: balance.runeId,
-          rune,
+          runeName,
           amount: balance.amount,
           scriptPubKey: Buffer.from(output.scriptPubKey.hex),
           txid: tx.txid,
@@ -331,7 +332,9 @@ export class RuneUpdater implements RuneBlockIndex {
       if (
         rune.value < this._minimum.value ||
         rune.reserved ||
-        this.etchings.find((etching) => etching.rune === rune.toString()) ||
+        this.etchings.find(
+          (etching) => SpacedRune.fromString(etching.runeName).rune.toString() === rune.toString()
+        ) ||
         (await this._storage.getRuneLocation(rune.toString())) !== null ||
         !(await this.txCommitsToRune(tx, rune))
       ) {
@@ -509,7 +512,7 @@ export class RuneUpdater implements RuneBlockIndex {
       const { divisibility, terms, premine, spacers, symbol } = artifact.etching.unwrap();
       this.etchings.push({
         valid: true,
-        rune: new SpacedRune(rune, Number(spacers.map(Number).unwrapOr(0))).toString(),
+        runeName: new SpacedRune(rune, Number(spacers.map(Number).unwrapOr(0))).toString(),
         runeId,
         txid,
         ...(divisibility.isSome() ? { divisibility: divisibility.map(Number).unwrap() } : {}),
@@ -560,7 +563,7 @@ export class RuneUpdater implements RuneBlockIndex {
         valid: false,
         runeId,
         txid,
-        rune: rune.toString(),
+        runeName: rune.toString(),
       });
     }
   }
