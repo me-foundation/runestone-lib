@@ -23,7 +23,7 @@ function getDefaultRuneUpdaterContext() {
 
   const rpc = mock<BitcoinRpcClient>();
 
-  const runeUpdater = new RuneUpdater(Network.MAINNET, block, storage, rpc);
+  const runeUpdater = new RuneUpdater(Network.MAINNET, block, false, storage, rpc);
 
   return { runeUpdater, block, storage, rpc };
 }

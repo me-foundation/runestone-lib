@@ -50,6 +50,7 @@ export class RuneUpdater implements RuneBlockIndex {
   constructor(
     network: Network,
     block: BlockInfo,
+    readonly reorg: boolean,
     private readonly _storage: RunestoneStorage,
     private readonly _rpc: BitcoinRpcClient
   ) {
