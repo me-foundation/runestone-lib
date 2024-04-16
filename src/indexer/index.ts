@@ -183,8 +183,9 @@ export class RunestoneIndexer {
         throw blockResult.error;
       }
       const block = blockResult.result;
+      const reorg = currentStorageBlock ? currentStorageBlock.height >= block.height : false;
 
-      const runeUpdater = new RuneUpdater(this._network, block, this._storage, this._rpc);
+      const runeUpdater = new RuneUpdater(this._network, block, reorg, this._storage, this._rpc);
 
       for (const [txIndex, tx] of block.tx.entries()) {
         await runeUpdater.indexRunes(tx, txIndex);

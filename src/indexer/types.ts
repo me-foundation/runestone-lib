@@ -148,6 +148,7 @@ export type RuneEtching = ({ valid: false } | ({ valid: true } & RuneEtchingBase
 
 export type RuneBlockIndex = {
   block: BlockInfo;
+  reorg: boolean;
   etchings: RuneEtching[];
   mintCounts: RuneMintCount[];
   utxoBalances: RuneUtxoBalance[];
