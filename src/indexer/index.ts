@@ -5,6 +5,7 @@ import { RuneUpdater } from './updater';
 import { u128 } from '../integer';
 
 export * from './types';
+export { RuneUpdater } from './updater';
 
 export class RunestoneIndexer {
   private readonly _storage: RunestoneStorage;

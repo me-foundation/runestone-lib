@@ -18,6 +18,7 @@ export {
   RuneLocation,
   RuneMintCount,
   RuneOutput,
+  RuneUpdater,
   RuneUtxoBalance,
   RunestoneIndexer,
   RunestoneIndexerOptions,
