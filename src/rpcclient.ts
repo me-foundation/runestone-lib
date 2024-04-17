@@ -64,6 +64,10 @@ export type GetBlockParams = {
   verbosity?: 0 | 1 | 2;
 };
 
+export type GetBlockhashParams = {
+  height: number;
+};
+
 export type GetRawTransactionParams = {
   txid: string;
   verbose?: boolean;
@@ -93,7 +97,7 @@ export type RpcResponse<T> =
     };
 
 export interface BitcoinRpcClient {
-  getbestblockhash(): Promise<RpcResponse<string>>;
+  getblockhash({ height }: GetBlockhashParams): Promise<RpcResponse<string>>;
   getblock<T extends GetBlockParams>({
     verbosity,
     blockhash,
@@ -103,6 +107,4 @@ export interface BitcoinRpcClient {
     verbose,
     blockhash,
   }: T): Promise<RpcResponse<GetRawTransactionReturn<T>>>;
-
-  getblockhashbyheight?(blockheight: number): Promise<string | null>;
 }
