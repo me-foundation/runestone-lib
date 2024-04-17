@@ -71,11 +71,79 @@ export class RunestoneIndexer {
       return;
     }
 
-    this._updateInProgress = this.updateRuneUtxoBalancesImpl();
+    this._updateInProgress = this._rpc.getblockhashbyheight
+      ? this.updateRuneUtxoBalancesWithBlockHeightImpl(
+          this._rpc.getblockhashbyheight.bind(this._rpc)
+        )
+      : this.updateRuneUtxoBalancesImpl();
     try {
       await this._updateInProgress;
     } finally {
       this._updateInProgress = null;
+    }
+  }
+
+  private async updateRuneUtxoBalancesWithBlockHeightImpl(
+    getblockhashbyheight: (blockheight: number) => Promise<string | null>
+  ) {
+    const currentStorageBlock = await this._storage.getCurrentBlock();
+    if (currentStorageBlock) {
+      // walk down until matching hash is found
+      const reorgBlockhashesToIndex: string[] = [];
+      let blockheight = currentStorageBlock.height;
+      let blockhash = await getblockhashbyheight(blockheight);
+      let storageBlockHash: string | null = currentStorageBlock.hash;
+      while (storageBlockHash !== blockhash) {
+        if (blockhash) {
+          reorgBlockhashesToIndex.push(blockhash);
+        }
+
+        blockheight--;
+        blockhash = await getblockhashbyheight(blockheight);
+        storageBlockHash = await this._storage.getBlockhash(blockheight);
+      }
+
+      // process blocks that are reorgs
+      for (const blockhash of reorgBlockhashesToIndex) {
+        const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
+        if (blockResult.error !== null) {
+          throw blockResult.error;
+        }
+        const block = blockResult.result;
+
+        const runeUpdater = new RuneUpdater(this._network, block, true, this._storage, this._rpc);
+
+        for (const [txIndex, tx] of block.tx.entries()) {
+          await runeUpdater.indexRunes(tx, txIndex);
+        }
+
+        await this._storage.saveBlockIndex(runeUpdater);
+      }
+    }
+
+    // start from first rune height or next block height, whichever is greater
+    let blockheight = Math.max(
+      Network.getFirstRuneHeight(this._network),
+      currentStorageBlock ? currentStorageBlock.height + 1 : 0
+    );
+    let blockhash = await getblockhashbyheight(blockheight);
+    while (blockhash !== null) {
+      const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
+      if (blockResult.error !== null) {
+        throw blockResult.error;
+      }
+      const block = blockResult.result;
+
+      const runeUpdater = new RuneUpdater(this._network, block, false, this._storage, this._rpc);
+
+      for (const [txIndex, tx] of block.tx.entries()) {
+        await runeUpdater.indexRunes(tx, txIndex);
+      }
+
+      await this._storage.saveBlockIndex(runeUpdater);
+
+      blockheight++;
+      blockhash = await getblockhashbyheight(blockheight);
     }
   }
 
