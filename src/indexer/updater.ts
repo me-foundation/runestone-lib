@@ -41,8 +41,7 @@ export class RuneUpdater implements RuneBlockIndex {
   utxoBalances: RuneUtxoBalance[] = [];
   spentOutputs: RuneOutput[] = [];
 
-  _minimum: Rune;
-
+  private _minimum: Rune;
   private _mintCountsByRuneLocation: Map<string, RuneMintCount> = new Map();
   private _burnedBalancesByRuneLocation: Map<string, RuneBalance> = new Map();
 
