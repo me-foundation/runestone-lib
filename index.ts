@@ -3,7 +3,6 @@ import { Etching } from './src/etching';
 import { RuneEtchingSpec } from './src/indexer';
 import { u128, u32, u64, u8 } from './src/integer';
 import { None, Option, Some } from './src/monads';
-import { Rune } from './src/rune';
 import { RuneId } from './src/runeid';
 import { Runestone } from './src/runestone';
 import { SpacedRune } from './src/spacedrune';
@@ -83,8 +82,6 @@ const u128Strict = (n: bigint) => {
   }
   return u128(bigN);
 };
-
-const SPACERS = ['•', '.'];
 
 // TODO: Add unit tests
 /**

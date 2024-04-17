@@ -103,4 +103,6 @@ export interface BitcoinRpcClient {
     verbose,
     blockhash,
   }: T): Promise<RpcResponse<GetRawTransactionReturn<T>>>;
+
+  getblockhashbyheight?(blockheight: number): Promise<string | null>;
 }

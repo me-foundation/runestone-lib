@@ -1,4 +1,3 @@
-import * as assert from 'node:assert/strict';
 import { Artifact, isRunestone } from '../artifact';
 import {
   COMMIT_CONFIRMATIONS,
@@ -224,7 +223,9 @@ export class RuneUpdater implements RuneBlockIndex {
 
       const optionVout = pointer
         .map((pointer) => Number(pointer))
-        .inspect((pointer) => assert(pointer < allocated.length))
+        .inspect((pointer) => {
+          if (pointer < 0 || pointer >= allocated.length) throw new Error('Pointer is invalid');
+        })
         .orElse(() => {
           const entry = [...tx.vout.entries()].find(
             ([_, txOut]) => !isScriptPubKeyHexOpReturn(txOut.scriptPubKey.hex)
@@ -536,7 +537,7 @@ export class RuneUpdater implements RuneBlockIndex {
                             ? { start: unwrappedTerms.height[0].unwrap() }
                             : {}),
                           ...(unwrappedTerms.height[1].isSome()
-                            ? { start: unwrappedTerms.height[1].unwrap() }
+                            ? { end: unwrappedTerms.height[1].unwrap() }
                             : {}),
                         },
                       }
@@ -548,7 +549,7 @@ export class RuneUpdater implements RuneBlockIndex {
                             ? { start: unwrappedTerms.offset[0].unwrap() }
                             : {}),
                           ...(unwrappedTerms.offset[1].isSome()
-                            ? { start: unwrappedTerms.offset[1].unwrap() }
+                            ? { end: unwrappedTerms.offset[1].unwrap() }
                             : {}),
                         },
                       }
