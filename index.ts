@@ -30,6 +30,7 @@ export { Network } from './src/network';
 export {
   BitcoinRpcClient,
   GetBlockParams,
+  GetBlockhashParams,
   GetBlockReturn,
   GetRawTransactionParams,
   GetRawTransactionReturn,
