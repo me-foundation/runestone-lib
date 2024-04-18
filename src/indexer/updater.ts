@@ -503,7 +503,10 @@ export class RuneUpdater implements RuneBlockIndex {
           continue;
         }
 
-        const commitTxHeightResult = await this._rpc.getblock({ blockhash: inputTx.blockhash });
+        const commitTxHeightResult = await this._rpc.getblockheader({
+          blockhash: inputTx.blockhash,
+          verbose: true,
+        });
         if (commitTxHeightResult.error !== null) {
           throw commitTxHeightResult.error;
         }

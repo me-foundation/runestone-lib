@@ -39,12 +39,9 @@ export type Tx = {
   vout: Vout[];
 };
 
-type BitcoinBlock = {
+type BitcoinBlockBase = {
   hash: string;
   confirmations: number;
-  size: number;
-  strippedsize: number;
-  weight: number;
   height: number;
   version: number;
   versionHex: string;
@@ -59,9 +56,24 @@ type BitcoinBlock = {
   previousblockhash: string;
 };
 
+type BitcoinBlockHeader = BitcoinBlockBase & {
+  nextblockhash: string;
+};
+
+type BitcoinBlock = BitcoinBlockBase & {
+  size: number;
+  strippedsize: number;
+  weight: number;
+};
+
 export type GetBlockParams = {
   blockhash: string;
   verbosity?: 0 | 1 | 2;
+};
+
+export type GetBlockHeaderParams = {
+  blockhash: string;
+  verbose?: boolean;
 };
 
 export type GetBlockhashParams = {
@@ -81,6 +93,8 @@ export type GetBlockReturn<T> = T extends { verbosity: 0 }
   : T extends { verbosity: 2 }
   ? { tx: Tx[] } & BitcoinBlock
   : { tx: string[] } & BitcoinBlock;
+
+export type GetBlockHeaderReturn<T> = T extends { verbose: true } ? BitcoinBlockHeader : string;
 
 export type GetRawTransactionReturn<T> = T extends { verbose: true }
   ? Tx & { confirmations?: number; blockhash: string }
@@ -102,6 +116,10 @@ export interface BitcoinRpcClient {
     verbosity,
     blockhash,
   }: T): Promise<RpcResponse<GetBlockReturn<T>>>;
+  getblockheader<T extends GetBlockHeaderParams>({
+    blockhash,
+    verbose,
+  }: T): Promise<RpcResponse<GetBlockHeaderReturn<T>>>;
   getrawtransaction<T extends GetRawTransactionParams>({
     txid,
     verbose,
