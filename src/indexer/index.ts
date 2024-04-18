@@ -11,7 +11,6 @@ export class RunestoneIndexer {
   private readonly _storage: RunestoneStorage;
   private readonly _rpc: BitcoinRpcClient;
   private readonly _network: Network;
-  private readonly _pollIntervalMs: number | null;
 
   private _started: boolean = false;
   private _updateInProgress: Promise<void> | null = null;
@@ -21,8 +20,6 @@ export class RunestoneIndexer {
     this._rpc = options.bitcoinRpcClient;
     this._storage = options.storage;
     this._network = options.network;
-    this._pollIntervalMs =
-      options.pollIntervalMs !== null ? Math.max(options.pollIntervalMs ?? 10000, 0) : null;
   }
 
   async start(): Promise<void> {
@@ -33,10 +30,6 @@ export class RunestoneIndexer {
     await this._storage.connect();
 
     this._started = true;
-
-    if (this._pollIntervalMs !== null) {
-      this._intervalId = setInterval(() => this.updateRuneUtxoBalances(), this._pollIntervalMs);
-    }
 
     if (this._network === Network.MAINNET) {
       this._storage.seedEtchings([
@@ -68,6 +61,10 @@ export class RunestoneIndexer {
   }
 
   async updateRuneUtxoBalances(): Promise<void> {
+    if (!this._started) {
+      throw new Error('Runestone indexer is not started');
+    }
+
     if (this._updateInProgress) {
       return;
     }
