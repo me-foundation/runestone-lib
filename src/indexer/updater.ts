@@ -280,7 +280,8 @@ export class RuneUpdater implements RuneBlockIndex {
       for (const balance of balances.values()) {
         const runeIdString = RuneLocation.toString(balance.runeId);
         const etching =
-          etchingByRuneId.get(runeIdString) ?? (await this._storage.getEtching(runeIdString));
+          etchingByRuneId.get(runeIdString) ??
+          (await this._storage.getEtching(runeIdString, this.block.height - 1));
         if (etching === null) {
           throw new Error('Rune should exist at this point');
         }
@@ -361,7 +362,8 @@ export class RuneUpdater implements RuneBlockIndex {
     );
 
     const etching =
-      etchingByRuneId.get(runeLocation) ?? (await this._storage.getEtching(runeLocation));
+      etchingByRuneId.get(runeLocation) ??
+      (await this._storage.getEtching(runeLocation, this.block.height - 1));
     if (etching === null || !etching.valid || !etching.terms) {
       return None;
     }
@@ -400,7 +402,7 @@ export class RuneUpdater implements RuneBlockIndex {
 
     const totalMints =
       currentBlockMints.count +
-      (await this._storage.getValidMintCount(runeLocation, this.block.previousblockhash));
+      (await this._storage.getValidMintCount(runeLocation, this.block.height - 1));
 
     if (totalMints >= cap) {
       return None;
