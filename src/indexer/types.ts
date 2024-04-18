@@ -43,11 +43,10 @@ export interface RunestoneStorage {
   saveBlockIndex(runeBlockIndex: RuneBlockIndex): Promise<void>;
 
   /**
-   * Get the etching that deployed the rune if it exists (up to given blockheight).
+   * Get the etching that deployed the rune if it exists.
    * @param runeLocation rune id string representation
-   * @param blockheight the block height
    */
-  getEtching(runeLocation: string, blockheight: number): Promise<RuneEtching | null>;
+  getEtching(runeLocation: string): Promise<RuneEtching | null>;
 
   /**
    * Get the total valid mint counts for rune up to and including specified block height.
@@ -56,6 +55,10 @@ export interface RunestoneStorage {
    */
   getValidMintCount(runeLocation: string, blockheight: number): Promise<number>;
 
+  /**
+   * Get rune location given rune ticker.
+   * @param runeTicker rune ticker
+   */
   getRuneLocation(runeTicker: string): Promise<RuneLocation | null>;
 
   /**
