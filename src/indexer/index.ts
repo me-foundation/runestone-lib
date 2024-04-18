@@ -13,8 +13,7 @@ export class RunestoneIndexer {
   private readonly _network: Network;
 
   private _started: boolean = false;
-  private _updateInProgress: Promise<void> | null = null;
-  private _intervalId: NodeJS.Timeout | null = null;
+  private _updateInProgress: boolean = false;
 
   constructor(options: RunestoneIndexerOptions) {
     this._rpc = options.bitcoinRpcClient;
@@ -51,11 +50,6 @@ export class RunestoneIndexer {
       return;
     }
 
-    if (this._intervalId !== null) {
-      clearInterval(this._intervalId);
-      this._intervalId = null;
-    }
-
     await this._storage.disconnect();
     this._started = false;
   }
@@ -69,11 +63,11 @@ export class RunestoneIndexer {
       return;
     }
 
-    this._updateInProgress = this.updateRuneUtxoBalancesImpl();
+    this._updateInProgress = true;
     try {
-      await this._updateInProgress;
+      await this.updateRuneUtxoBalancesImpl();
     } finally {
-      this._updateInProgress = null;
+      this._updateInProgress = false;
     }
   }
 
