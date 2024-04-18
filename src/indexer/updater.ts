@@ -280,8 +280,7 @@ export class RuneUpdater implements RuneBlockIndex {
       for (const balance of balances.values()) {
         const runeIdString = RuneLocation.toString(balance.runeId);
         const etching =
-          etchingByRuneId.get(runeIdString) ??
-          (await this._storage.getEtching(runeIdString, this.block.height - 1));
+          etchingByRuneId.get(runeIdString) ?? (await this._storage.getEtching(runeIdString));
         if (etching === null) {
           throw new Error('Rune should exist at this point');
         }
@@ -330,15 +329,29 @@ export class RuneUpdater implements RuneBlockIndex {
     if (optionRune.isSome()) {
       rune = optionRune.unwrap();
 
+      if (rune.value < this._minimum.value) {
+        return None;
+      }
+
+      if (rune.reserved) {
+        return None;
+      }
+
       if (
-        rune.value < this._minimum.value ||
-        rune.reserved ||
         this.etchings.find(
           (etching) => SpacedRune.fromString(etching.runeName).rune.toString() === rune.toString()
-        ) ||
-        (await this._storage.getRuneLocation(rune.toString())) !== null ||
-        !(await this.txCommitsToRune(tx, rune))
+        )
       ) {
+        return None;
+      }
+
+      const runeLocation = await this._storage.getRuneLocation(rune.toString());
+      if (runeLocation && runeLocation.block < this.block.height) {
+        return None;
+      }
+
+      const txCommitsToRune = await this.txCommitsToRune(tx, rune);
+      if (!txCommitsToRune) {
         return None;
       }
     } else {
@@ -362,8 +375,7 @@ export class RuneUpdater implements RuneBlockIndex {
     );
 
     const etching =
-      etchingByRuneId.get(runeLocation) ??
-      (await this._storage.getEtching(runeLocation, this.block.height - 1));
+      etchingByRuneId.get(runeLocation) ?? (await this._storage.getEtching(runeLocation));
     if (etching === null || !etching.valid || !etching.terms) {
       return None;
     }
