@@ -1,10 +1,12 @@
+import { isRunestone } from './src/artifact';
 import { MAX_DIVISIBILITY } from './src/constants';
 import { Etching } from './src/etching';
 import { RuneEtchingSpec } from './src/indexer';
 import { u128, u32, u64, u8 } from './src/integer';
 import { None, Option, Some } from './src/monads';
+import { Rune } from './src/rune';
 import { RuneId } from './src/runeid';
-import { Runestone } from './src/runestone';
+import { Runestone, RunestoneTx } from './src/runestone';
 import { SpacedRune } from './src/spacedrune';
 import { Terms } from './src/terms';
 
@@ -53,6 +55,15 @@ export type RunestoneSpec = {
     amount: bigint;
     output: number;
   }[];
+};
+
+export type Cenotaph = {
+  flaws: string[];
+  etching?: string;
+  mint?: {
+    block: bigint;
+    tx: number;
+  };
 };
 
 // Helper functions to ensure numbers fit the desired type correctly
@@ -183,4 +194,104 @@ export function encodeRunestone(runestone: RunestoneSpec): {
     encodedRunestone: new Runestone(mint, pointer, edicts, etching).encipher(),
     etchingCommitment,
   };
+}
+
+export function tryDecodeRunestone(tx: RunestoneTx): RunestoneSpec | Cenotaph | null {
+  const optionArtifact = Runestone.decipher(tx);
+  if (optionArtifact.isNone()) {
+    return null;
+  }
+
+  const artifact = optionArtifact.unwrap();
+  if (isRunestone(artifact)) {
+    const runestone = artifact;
+
+    const etching = () => runestone.etching.unwrap();
+    const terms = () => etching().terms.unwrap();
+
+    return {
+      ...(runestone.etching.isSome()
+        ? {
+            etching: {
+              ...(etching().divisibility.isSome()
+                ? { divisibility: etching().divisibility.map(Number).unwrap() }
+                : {}),
+              ...(etching().premine.isSome() ? { premine: etching().premine.unwrap() } : {}),
+              ...(etching().rune.isSome()
+                ? {
+                    runeName: new SpacedRune(
+                      etching().rune.unwrap(),
+                      etching().spacers.map(Number).unwrapOr(0)
+                    ).toString(),
+                  }
+                : {}),
+              ...(etching().symbol.isSome() ? { symbol: etching().symbol.unwrap() } : {}),
+              ...(etching().terms.isSome()
+                ? {
+                    terms: {
+                      ...(terms().amount.isSome() ? { amount: terms().amount.unwrap() } : {}),
+                      ...(terms().cap.isSome() ? { cap: terms().cap.unwrap() } : {}),
+                      ...(terms().height.find((option) => option.isSome())
+                        ? {
+                            height: {
+                              ...(terms().height[0].isSome()
+                                ? { start: terms().height[0].unwrap() }
+                                : {}),
+                              ...(terms().height[1].isSome()
+                                ? { end: terms().height[1].unwrap() }
+                                : {}),
+                            },
+                          }
+                        : {}),
+                      ...(terms().offset.find((option) => option.isSome())
+                        ? {
+                            offset: {
+                              ...(terms().offset[0].isSome()
+                                ? { start: terms().offset[0].unwrap() }
+                                : {}),
+                              ...(terms().offset[1].isSome()
+                                ? { end: terms().offset[1].unwrap() }
+                                : {}),
+                            },
+                          }
+                        : {}),
+                    },
+                  }
+                : {}),
+              turbo: etching().turbo,
+            },
+          }
+        : {}),
+      ...(runestone.mint.isSome()
+        ? {
+            mint: {
+              block: runestone.mint.unwrap().block,
+              tx: Number(runestone.mint.unwrap().tx),
+            },
+          }
+        : {}),
+      ...(runestone.pointer.isSome() ? { pointer: Number(runestone.pointer.unwrap()) } : {}),
+      ...(runestone.edicts.length
+        ? {
+            edicts: runestone.edicts.map((edict) => ({
+              id: {
+                block: edict.id.block,
+                tx: Number(edict.id.tx),
+              },
+              amount: edict.amount,
+              output: Number(edict.output),
+            })),
+          }
+        : {}),
+    };
+  } else {
+    const cenotaph = artifact;
+    return {
+      flaws: [],
+      ...(cenotaph.etching.isSome() ? { etching: cenotaph.etching.unwrap().toString() } : {}),
+      ...(cenotaph.mint.isSome()
+        ? { mint: { block: cenotaph.mint.unwrap().block, tx: Number(cenotaph.mint.unwrap().tx) } }
+        : {}),
+    };
+  }
 }
