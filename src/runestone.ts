@@ -17,7 +17,7 @@ import { Cenotaph } from './cenotaph';
 
 export const MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
 
-type RunestoneTx = { vout: { scriptPubKey: { hex: string } }[] };
+export type RunestoneTx = { vout: { scriptPubKey: { hex: string } }[] };
 
 type Payload = Buffer | Flaw;
 
