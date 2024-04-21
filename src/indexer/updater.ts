@@ -22,7 +22,7 @@ import {
   RuneMintCount,
   RuneUtxoBalance,
   RunestoneStorage,
-  SpentRuneUtxoBalance,
+  RuneSpentUtxoBalance,
 } from './types';
 
 function isScriptPubKeyHexOpReturn(scriptPubKeyHex: string) {
@@ -39,7 +39,7 @@ export class RuneUpdater implements RuneBlockIndex {
   block: BlockInfo;
   etchings: RuneEtching[] = [];
   utxoBalances: RuneUtxoBalance[] = [];
-  spentBalances: SpentRuneUtxoBalance[] = [];
+  spentBalances: RuneSpentUtxoBalance[] = [];
 
   private _minimum: Rune;
   private _mintCountsByRuneLocation: Map<string, RuneMintCount> = new Map();
