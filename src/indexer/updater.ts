@@ -39,7 +39,7 @@ export class RuneUpdater implements RuneBlockIndex {
   block: BlockInfo;
   etchings: RuneEtching[] = [];
   utxoBalances: RuneUtxoBalance[] = [];
-  spentOutputs: SpentRuneUtxoBalance[] = [];
+  spentBalances: SpentRuneUtxoBalance[] = [];
 
   private _minimum: Rune;
   private _mintCountsByRuneLocation: Map<string, RuneMintCount> = new Map();
@@ -452,7 +452,7 @@ export class RuneUpdater implements RuneBlockIndex {
         const balance = unallocated.get(runeLocation) ?? { runeId, amount: 0n };
         unallocated.set(runeLocation, balance);
         balance.amount = u128.checkedAddThrow(u128(balance.amount), u128(additionalBalance.amount));
-        this.spentOutputs.push({
+        this.spentBalances.push({
           txid: input.txid,
           vout: input.vout,
           address: additionalBalance.address,

@@ -153,6 +153,6 @@ export type RuneBlockIndex = {
   etchings: RuneEtching[];
   mintCounts: RuneMintCount[];
   utxoBalances: RuneUtxoBalance[];
-  spentOutputs: SpentRuneUtxoBalance[];
+  spentBalances: SpentRuneUtxoBalance[];
   burnedBalances: RuneBalance[];
 };
