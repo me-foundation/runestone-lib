@@ -1,6 +1,6 @@
 {
   "name": "@magiceden-oss/runestone-lib",
-  "version": "0.9.6-alpha",
+  "version": "0.9.7-alpha",
   "description": "",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

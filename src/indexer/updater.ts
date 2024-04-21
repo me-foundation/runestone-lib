@@ -12,18 +12,18 @@ import { BitcoinRpcClient } from '../rpcclient';
 import { Rune } from '../rune';
 import { Runestone } from '../runestone';
 import { script } from '../script';
+import { SpacedRune } from '../spacedrune';
 import {
   BlockInfo,
-  RuneBlockIndex,
   RuneBalance,
+  RuneBlockIndex,
   RuneEtching,
   RuneLocation,
   RuneMintCount,
-  RuneOutput,
   RuneUtxoBalance,
   RunestoneStorage,
+  SpentRuneUtxoBalance,
 } from './types';
-import { SpacedRune } from '../spacedrune';
 
 function isScriptPubKeyHexOpReturn(scriptPubKeyHex: string) {
   return scriptPubKeyHex && Buffer.from(scriptPubKeyHex, 'hex')[0] === OP_RETURN;
@@ -39,7 +39,7 @@ export class RuneUpdater implements RuneBlockIndex {
   block: BlockInfo;
   etchings: RuneEtching[] = [];
   utxoBalances: RuneUtxoBalance[] = [];
-  spentOutputs: RuneOutput[] = [];
+  spentBalances: SpentRuneUtxoBalance[] = [];
 
   private _minimum: Rune;
   private _mintCountsByRuneLocation: Map<string, RuneMintCount> = new Map();
@@ -446,13 +446,22 @@ export class RuneUpdater implements RuneBlockIndex {
       const utxoBalance =
         utxoBalancesByOutputLocation.get(`${input.txid}:${input.vout}`) ??
         (await this._storage.getUtxoBalance(input.txid, input.vout));
-      this.spentOutputs.push({ txid: input.txid, vout: input.vout });
       for (const additionalBalance of utxoBalance) {
         const runeId = additionalBalance.runeId;
         const runeLocation = RuneLocation.toString(runeId);
         const balance = unallocated.get(runeLocation) ?? { runeId, amount: 0n };
         unallocated.set(runeLocation, balance);
         balance.amount = u128.checkedAddThrow(u128(balance.amount), u128(additionalBalance.amount));
+        this.spentBalances.push({
+          txid: input.txid,
+          vout: input.vout,
+          address: additionalBalance.address,
+          scriptPubKey: additionalBalance.scriptPubKey,
+          runeId: additionalBalance.runeId,
+          runeTicker: additionalBalance.runeTicker,
+          amount: additionalBalance.amount,
+          mempoolTxid: tx.txid,
+        });
       }
     }
 

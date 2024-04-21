@@ -882,6 +882,7 @@ describe('edict', () => {
     await runeUpdater.indexRunes(tx2, 89);
     expect(runeUpdater.etchings.length).toBe(0);
     expect(runeUpdater.utxoBalances.length).toBe(2);
+    expect(runeUpdater.spentBalances.length).toBe(2);
     expect(runeUpdater.utxoBalances[0]).toMatchObject({
       txid: 'txid',
       vout: 1,
@@ -902,10 +903,31 @@ describe('edict', () => {
       },
       amount: 400n,
     });
-    expect(runeUpdater.spentOutputs).toEqual([
-      { txid: 'parenttxid', vout: 0 },
-      { txid: 'txid', vout: 1 },
-    ]);
+    expect(runeUpdater.spentBalances[0]).toMatchObject({
+      txid: 'parenttxid',
+      vout: 0,
+      address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      runeTicker: 'TESTRUNE',
+      amount: 400n,
+      mempoolTxid: 'txid',
+    });
+    expect(runeUpdater.spentBalances[1]).toMatchObject({
+      txid: 'txid',
+      vout: 1,
+      address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+      runeId: {
+        block: 888,
+        tx: 8,
+      },
+      runeTicker: 'TESTRUNE',
+      amount: 400n,
+      mempoolTxid: 'childtxid',
+    });
   });
 
   test('edict with invalid output is cenotaph', async () => {
