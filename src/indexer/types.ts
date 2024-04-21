@@ -104,10 +104,7 @@ export namespace RuneLocation {
   }
 }
 
-export type RuneOutput = {
-  txid: string;
-  vout: number;
-};
+export type SpentRuneUtxoBalance = RuneUtxoBalance & { mempoolTxid: string };
 
 export type RuneUtxoBalance = {
   txid: string;
@@ -156,6 +153,6 @@ export type RuneBlockIndex = {
   etchings: RuneEtching[];
   mintCounts: RuneMintCount[];
   utxoBalances: RuneUtxoBalance[];
-  spentOutputs: RuneOutput[];
+  spentOutputs: SpentRuneUtxoBalance[];
   burnedBalances: RuneBalance[];
 };
