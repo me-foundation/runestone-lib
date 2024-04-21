@@ -914,7 +914,7 @@ describe('edict', () => {
       },
       runeTicker: 'TESTRUNE',
       amount: 400n,
-      mempoolTxid: 'txid',
+      spentTxid: 'txid',
     });
     expect(runeUpdater.spentBalances[1]).toMatchObject({
       txid: 'txid',
@@ -926,7 +926,7 @@ describe('edict', () => {
       },
       runeTicker: 'TESTRUNE',
       amount: 400n,
-      mempoolTxid: 'childtxid',
+      spentTxid: 'childtxid',
     });
   });
 

@@ -104,7 +104,7 @@ export namespace RuneLocation {
   }
 }
 
-export type RuneSpentUtxoBalance = RuneUtxoBalance & { mempoolTxid: string };
+export type RuneSpentUtxoBalance = RuneUtxoBalance & { spentTxid: string };
 
 export type RuneUtxoBalance = {
   txid: string;
