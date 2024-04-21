@@ -460,7 +460,7 @@ export class RuneUpdater implements RuneBlockIndex {
           runeId: additionalBalance.runeId,
           runeTicker: additionalBalance.runeTicker,
           amount: additionalBalance.amount,
-          mempoolTxid: tx.txid,
+          spentTxid: tx.txid,
         });
       }
     }
