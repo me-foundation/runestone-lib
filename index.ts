@@ -4,7 +4,6 @@ import { Etching } from './src/etching';
 import { RuneEtchingSpec } from './src/indexer';
 import { u128, u32, u64, u8 } from './src/integer';
 import { None, Option, Some } from './src/monads';
-import { Rune } from './src/rune';
 import { RuneId } from './src/runeid';
 import { Runestone, RunestoneTx } from './src/runestone';
 import { SpacedRune } from './src/spacedrune';
@@ -19,7 +18,7 @@ export {
   RuneEtchingSpec,
   RuneLocation,
   RuneMintCount,
-  RuneOutput,
+  RuneSpentUtxoBalance,
   RuneUpdater,
   RuneUtxoBalance,
   RunestoneIndexer,
@@ -32,8 +31,8 @@ export { Network } from './src/network';
 export {
   BitcoinRpcClient,
   GetBlockParams,
-  GetBlockhashParams,
   GetBlockReturn,
+  GetBlockhashParams,
   GetRawTransactionParams,
   GetRawTransactionReturn,
   RpcResponse,
