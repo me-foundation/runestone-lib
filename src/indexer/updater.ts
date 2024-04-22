@@ -160,18 +160,23 @@ export class RuneUpdater implements RuneBlockIndex {
               .filter(([_, vout]) => !isScriptPubKeyHexOpReturn(vout.scriptPubKey.hex))
               .map(([index]) => index);
 
-            if (amount === 0n) {
-              // if amount is zero, divide balance between eligible outputs
-              const amount = u128(u128(maybeBalance.amount) / u128(destinations.length));
-              const remainder = u128(maybeBalance.amount) % u128(destinations.length);
+            if (destinations.length !== 0) {
+              if (amount === 0n) {
+                // if amount is zero, divide balance between eligible outputs
+                const amount = u128(u128(maybeBalance.amount) / u128(destinations.length));
+                const remainder = u128(maybeBalance.amount) % u128(destinations.length);
 
-              for (const [i, output] of destinations.entries()) {
-                allocate(i < remainder ? u128.checkedAddThrow(amount, u128(1)) : amount, output);
-              }
-            } else {
-              // if amount is non-zero, distribute amount to eligible outputs
-              for (const output of destinations) {
-                allocate(amount < maybeBalance.amount ? amount : u128(maybeBalance.amount), output);
+                for (const [i, output] of destinations.entries()) {
+                  allocate(i < remainder ? u128.checkedAddThrow(amount, u128(1)) : amount, output);
+                }
+              } else {
+                // if amount is non-zero, distribute amount to eligible outputs
+                for (const output of destinations) {
+                  allocate(
+                    amount < maybeBalance.amount ? amount : u128(maybeBalance.amount),
+                    output
+                  );
+                }
               }
             }
           } else {
