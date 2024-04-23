@@ -75,12 +75,6 @@ export type RunestoneIndexerOptions = {
   network: Network;
 
   storage: RunestoneStorage;
-
-  /**
-   * The interval at which to poll the RPC for new blocks, in milliseconds.
-   * Defaults to `10000` (10 seconds), and must be positive.
-   */
-  pollIntervalMs?: number;
 };
 
 export type BlockIdentifier = {
@@ -119,7 +113,7 @@ export type RuneUtxoBalance = {
 export type RuneMintCount = { mint: RuneLocation; count: number };
 export type RuneBalance = { runeId: RuneLocation; amount: bigint };
 
-export type RuneEtchingBase = {
+type RuneEtchingBase = {
   divisibility?: number;
   premine?: bigint;
   symbol?: string;
