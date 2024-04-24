@@ -1,9 +1,9 @@
 # runestone-lib
 
 This is a Typescript implementation of the Bitcoin Runestone protocol.
-To see the original version, please go to the [Ordinals repo](/ordinals/ord);
-you can find various [data structures](/ordinals/ord/tree/master/crates/ordinals/src) and
-[indexer implementation](/ordinals/ord/blob/master/src/index/updater/rune_updater.rs) there.
+To see the original version, please go to the [Ordinals repo](https://github.com/ordinals/ord);
+you can find various [data structures](https://github.com/ordinals/ord/tree/master/crates/ordinals/src) and
+[indexer implementation](https://github.com/ordinals/ord/blob/master/src/index/updater/rune_updater.rs) there.
 General documentation of the runes protocol and how runestones are used can be found
 [here](https://docs.ordinals.com/runes.html).
 
