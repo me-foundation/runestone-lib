@@ -71,9 +71,7 @@ export interface RunestoneStorage {
 
 export type RunestoneIndexerOptions = {
   bitcoinRpcClient: BitcoinRpcClient;
-
   network: Network;
-
   storage: RunestoneStorage;
 };
 
