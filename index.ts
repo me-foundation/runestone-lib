@@ -1,6 +1,7 @@
-import { isRunestone } from './src/artifact';
+import { isRunestone as isRunestoneArtifact } from './src/artifact';
 import { MAX_DIVISIBILITY } from './src/constants';
 import { Etching } from './src/etching';
+import { Flaw as FlawEnum } from './src/flaw';
 import { RuneEtchingSpec } from './src/indexer';
 import { u128, u32, u64, u8 } from './src/integer';
 import { None, Option, Some } from './src/monads';
@@ -56,14 +57,51 @@ export type RunestoneSpec = {
   }[];
 };
 
+export type Flaw =
+  | 'edict_output'
+  | 'edict_rune_id'
+  | 'invalid_script'
+  | 'opcode'
+  | 'supply_overflow'
+  | 'trailing_integers'
+  | 'truncated_field'
+  | 'unrecognized_even_tag'
+  | 'unrecognized_flag'
+  | 'varint';
+
 export type Cenotaph = {
-  flaws: string[];
+  flaws: Flaw[];
   etching?: string;
   mint?: {
     block: bigint;
     tx: number;
   };
 };
+
+function getFlawString(flaw: FlawEnum): Flaw {
+  switch (flaw) {
+    case FlawEnum.EDICT_OUTPUT:
+      return 'edict_output';
+    case FlawEnum.EDICT_RUNE_ID:
+      return 'edict_rune_id';
+    case FlawEnum.INVALID_SCRIPT:
+      return 'invalid_script';
+    case FlawEnum.OPCODE:
+      return 'opcode';
+    case FlawEnum.SUPPLY_OVERFLOW:
+      return 'supply_overflow';
+    case FlawEnum.TRAILING_INTEGERS:
+      return 'trailing_integers';
+    case FlawEnum.TRUNCATED_FIELD:
+      return 'truncated_field';
+    case FlawEnum.UNRECOGNIZED_EVEN_TAG:
+      return 'unrecognized_even_tag';
+    case FlawEnum.UNRECOGNIZED_FLAG:
+      return 'unrecognized_flag';
+    case FlawEnum.VARINT:
+      return 'varint';
+  }
+}
 
 // Helper functions to ensure numbers fit the desired type correctly
 const u8Strict = (n: number) => {
@@ -195,6 +233,10 @@ export function encodeRunestone(runestone: RunestoneSpec): {
   };
 }
 
+export function isRunestone(artifact: RunestoneSpec | Cenotaph): artifact is RunestoneSpec {
+  return !('flaws' in artifact);
+}
+
 export function tryDecodeRunestone(tx: RunestoneTx): RunestoneSpec | Cenotaph | null {
   const optionArtifact = Runestone.decipher(tx);
   if (optionArtifact.isNone()) {
@@ -202,7 +244,7 @@ export function tryDecodeRunestone(tx: RunestoneTx): RunestoneSpec | Cenotaph | 
   }
 
   const artifact = optionArtifact.unwrap();
-  if (isRunestone(artifact)) {
+  if (isRunestoneArtifact(artifact)) {
     const runestone = artifact;
 
     const etching = () => runestone.etching.unwrap();
@@ -286,7 +328,7 @@ export function tryDecodeRunestone(tx: RunestoneTx): RunestoneSpec | Cenotaph | 
   } else {
     const cenotaph = artifact;
     return {
-      flaws: [],
+      flaws: cenotaph.flaws.map(getFlawString),
       ...(cenotaph.etching.isSome() ? { etching: cenotaph.etching.unwrap().toString() } : {}),
       ...(cenotaph.mint.isSome()
         ? { mint: { block: cenotaph.mint.unwrap().block, tx: Number(cenotaph.mint.unwrap().tx) } }
