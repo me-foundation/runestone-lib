@@ -104,7 +104,7 @@ let stop = false;
 
 const intervalId = setInterval(async () => {
   try {
-    await index.updateRuneUtxoBalances();
+    await indexer.updateRuneUtxoBalances();
   } catch (err) {
     console.error('Error occurred while indexing runes', err);
   }
