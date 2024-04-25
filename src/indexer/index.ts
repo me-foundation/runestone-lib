@@ -90,7 +90,7 @@ export class RunestoneIndexer {
       }
 
       // process blocks that are reorgs
-      for (const blockhash of reorgBlockhashesToIndex) {
+      for (const blockhash of reorgBlockhashesToIndex.toReversed()) {
         const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
         if (blockResult.error !== null) {
           throw blockResult.error;
