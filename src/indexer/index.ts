@@ -88,6 +88,7 @@ export class RunestoneIndexer {
         blockhash = (await this._rpc.getblockhash({ height: blockheight })).result;
         storageBlockHash = await this._storage.getBlockhash(blockheight);
       }
+      reorgBlockhashesToIndex.reverse();
 
       // process blocks that are reorgs
       for (const blockhash of reorgBlockhashesToIndex) {
