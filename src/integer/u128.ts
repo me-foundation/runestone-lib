@@ -39,8 +39,17 @@ export const U128_MAX_BIGINT = 0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffffn;
  * @returns - The resulting 128-bit unsigned integer (BigInt).
  */
 export function u128(num: number | bigint): u128 {
-  const bigNum = typeof num == 'bigint' ? num : BigInt(num);
-  return (bigNum & U128_MAX_BIGINT) as u128;
+  if (typeof num == 'bigint') {
+    if (num < 0n || num > U128_MAX_BIGINT) {
+      throw new Error('num is out of range');
+    }
+  } else {
+    if (!Number.isSafeInteger(num) || num < 0) {
+      throw new Error('num is not a valid integer');
+    }
+  }
+
+  return BigInt(num) as u128;
 }
 
 export namespace u128 {

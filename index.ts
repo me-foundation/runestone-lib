@@ -1,4 +1,3 @@
-import { isRunestone as isRunestoneArtifact } from './src/artifact';
 import { MAX_DIVISIBILITY } from './src/constants';
 import { Etching } from './src/etching';
 import { Flaw as FlawEnum } from './src/flaw';
@@ -244,7 +243,7 @@ export function tryDecodeRunestone(tx: RunestoneTx): RunestoneSpec | Cenotaph | 
   }
 
   const artifact = optionArtifact.unwrap();
-  if (isRunestoneArtifact(artifact)) {
+  if (artifact.type === 'runestone') {
     const runestone = artifact;
 
     const etching = () => runestone.etching.unwrap();

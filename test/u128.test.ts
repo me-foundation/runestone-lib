@@ -7,8 +7,8 @@ describe('u128 functions', () => {
     expect(u128(0)).toBe(0n);
     expect(u128(1)).toBe(1n);
     expect(u128(2n ** 128n - 1n)).toBe(340282366920938463463374607431768211455n);
-    expect(u128(2n ** 128n)).toBe(0n);
-    expect(u128(-1)).toBe(340282366920938463463374607431768211455n);
+    expect(() => u128(2n ** 128n)).toThrow();
+    expect(() => u128(-1)).toThrow();
     expect(() => u128(1.2)).toThrow();
   });
 
