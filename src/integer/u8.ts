@@ -22,8 +22,17 @@ export type u8 = BigTypedNumber<'u8'>;
 export const U8_MAX_BIGINT = 0xffn;
 
 export function u8(num: number | bigint): u8 {
-  const bigNum = typeof num == 'bigint' ? num : BigInt(num);
-  return (bigNum & U8_MAX_BIGINT) as u8;
+  if (typeof num == 'bigint') {
+    if (num < 0n || num > U8_MAX_BIGINT) {
+      throw new Error('num is out of range');
+    }
+  } else {
+    if (!Number.isSafeInteger(num) || num < 0) {
+      throw new Error('num is not a valid integer');
+    }
+  }
+
+  return BigInt(num) as u8;
 }
 
 export namespace u8 {

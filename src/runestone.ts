@@ -26,6 +26,8 @@ export function isValidPayload(payload: Payload): payload is Buffer {
 }
 
 export class Runestone {
+  readonly type = 'runestone';
+
   constructor(
     readonly mint: Option<RuneId>,
     readonly pointer: Option<u32>,
