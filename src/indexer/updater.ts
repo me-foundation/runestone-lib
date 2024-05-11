@@ -298,7 +298,7 @@ export class RuneUpdater implements RuneBlockIndex {
           txid: tx.txid,
           vout,
           address: output.scriptPubKey.address,
-          value: output.value,
+          satValue: output.value ?? 0,
         });
       }
     }
@@ -467,7 +467,7 @@ export class RuneUpdater implements RuneBlockIndex {
           runeTicker: additionalBalance.runeTicker,
           amount: additionalBalance.amount,
           spentTxid: tx.txid,
-          value: additionalBalance.value,
+          satValue: additionalBalance.satValue,
         });
       }
     }

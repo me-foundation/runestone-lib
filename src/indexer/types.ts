@@ -101,7 +101,7 @@ export type RuneSpentUtxoBalance = RuneUtxoBalance & { spentTxid: string };
 export type RuneUtxoBalance = {
   txid: string;
   vout: number;
-  value?: number;
+  satValue: number;
   address?: string;
   scriptPubKey: Buffer;
   runeId: RuneLocation;
