@@ -790,6 +790,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
     storage.getUtxoBalance.mockResolvedValueOnce([
@@ -801,6 +802,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
     storage.getEtching.mockResolvedValue({
@@ -866,6 +868,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -955,6 +958,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1003,6 +1007,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1055,6 +1060,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1111,6 +1117,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1169,6 +1176,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1230,6 +1238,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1288,6 +1297,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1346,6 +1356,7 @@ describe('edict', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
 
@@ -1401,6 +1412,7 @@ describe('no runestone', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
     storage.getEtching.mockResolvedValue({
@@ -1451,6 +1463,7 @@ describe('no runestone', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
     storage.getEtching.mockResolvedValue({
@@ -1508,6 +1521,7 @@ describe('burning', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
     storage.getEtching.mockResolvedValue({
@@ -1560,6 +1574,7 @@ describe('burning', () => {
         runeId: { block: 888, tx: 8 },
         scriptPubKey: Buffer.from('a914ea6b832a05c6ca578baa3836f3f25553d41068a587', 'hex'),
         address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
+        satValue: 0,
       },
     ]);
     storage.getEtching.mockResolvedValue({
