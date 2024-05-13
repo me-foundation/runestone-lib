@@ -35,7 +35,7 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) } },
+        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
       ],
     };
 
@@ -50,7 +50,7 @@ describe('deploy', () => {
       {
         txid: 'txid',
         vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
-        vout: [{ scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAA' } }) } }],
+        vout: [{ scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAA' } }) }, value: 0 }],
       },
       88
     );
@@ -73,6 +73,7 @@ describe('deploy', () => {
           scriptPubKey: {
             hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAAAAAAAAAAAAAAA' } }),
           },
+          value: 0,
         },
       ],
     };
@@ -95,7 +96,7 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'dead'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) } },
+        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
       ],
     };
     rpc.getrawtransaction.mockResolvedValue({
@@ -121,7 +122,7 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'dead'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) } },
+        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
       ],
     };
     rpc.getrawtransaction.mockResolvedValue({
@@ -143,7 +144,7 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['04d6e3604a04356bcf23', 'dead'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) } },
+        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
       ],
     };
     rpc.getrawtransaction.mockResolvedValue({
@@ -164,7 +165,7 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'dead'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) } },
+        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
       ],
     };
     rpc.getrawtransaction.mockResolvedValue({
@@ -189,7 +190,7 @@ describe('deploy', () => {
     const tx: UpdaterTx = {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
-      vout: [{ scriptPubKey: { hex: getDeployRunestoneHex({ etching: {} }) } }],
+      vout: [{ scriptPubKey: { hex: getDeployRunestoneHex({ etching: {} }) }, value: 0 }],
     };
 
     await runeUpdater.indexRunes(tx, 88);
@@ -210,6 +211,7 @@ describe('deploy', () => {
           scriptPubKey: {
             hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' }, pointer: 123 }),
           },
+          value: 0,
         },
       ],
     };
@@ -246,6 +248,7 @@ describe('deploy', () => {
               edicts: [{ id: [0, 0], amount: 123, output: 1 }],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],
@@ -283,6 +286,7 @@ describe('deploy', () => {
               ],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -338,6 +342,7 @@ describe('deploy', () => {
               edicts: [{ id: [0, 0], amount: 500, output: 1 }],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],
@@ -374,6 +379,7 @@ describe('deploy', () => {
               ],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],
@@ -410,6 +416,7 @@ describe('deploy', () => {
               ],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -456,6 +463,7 @@ describe('mint', () => {
               mint: [876543, 21],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],
@@ -510,6 +518,7 @@ describe('mint', () => {
                 mint: [876543, 21],
               }),
             },
+            value: 0,
           },
           MAGIC_EDEN_OUTPUT,
         ],
@@ -561,6 +570,7 @@ describe('mint', () => {
                 mint: [876543, 21],
               }),
             },
+            value: 0,
           },
           MAGIC_EDEN_OUTPUT,
         ],
@@ -614,6 +624,7 @@ describe('mint', () => {
                 pointer: 0,
               }),
             },
+            value: 0,
           },
           MAGIC_EDEN_OUTPUT,
         ],
@@ -661,6 +672,7 @@ describe('mint', () => {
               mint: [876543, 21],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -718,6 +730,7 @@ test('mint is valid for etching in same block', async () => {
             etching: { terms: { amount: 100, cap: 1 } },
           }),
         },
+        value: 0,
       },
       MAGIC_EDEN_OUTPUT,
     ],
@@ -735,6 +748,7 @@ test('mint is valid for etching in same block', async () => {
             mint: [100000, 21],
           }),
         },
+        value: 0,
       },
       MAGIC_EDEN_OUTPUT,
     ],
@@ -775,6 +789,7 @@ describe('edict', () => {
               ],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -849,6 +864,7 @@ describe('edict', () => {
           scriptPubKey: {
             hex: getDeployRunestoneHex({}),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],
@@ -943,6 +959,7 @@ describe('edict', () => {
           scriptPubKey: {
             hex: getDeployRunestoneHex({ edicts: [{ id: [888, 8], amount: 400, output: 4 }] }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -992,6 +1009,7 @@ describe('edict', () => {
           scriptPubKey: {
             hex: getDeployRunestoneHex({}),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -1045,6 +1063,7 @@ describe('edict', () => {
           scriptPubKey: {
             hex: getDeployRunestoneHex({ pointer: 2 }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -1100,6 +1119,7 @@ describe('edict', () => {
               edicts: [{ id: [888, 8], amount: 0, output: 5 }],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -1159,6 +1179,7 @@ describe('edict', () => {
               edicts: [{ id: [888, 8], amount: 0, output: 5 }],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -1221,6 +1242,7 @@ describe('edict', () => {
               ],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -1280,6 +1302,7 @@ describe('edict', () => {
               edicts: [{ id: [888, 8], amount: 50, output: 5 }],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -1339,6 +1362,7 @@ describe('edict', () => {
               edicts: [{ id: [888, 8], amount: 140, output: 5 }],
             }),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
         MAGIC_EDEN_OUTPUT,
@@ -1399,6 +1423,7 @@ describe('no runestone', () => {
           scriptPubKey: {
             hex: Buffer.from([OP_RETURN]).toString('hex'),
           },
+          value: 0,
         },
       ],
     };
@@ -1449,6 +1474,7 @@ describe('no runestone', () => {
           scriptPubKey: {
             hex: Buffer.from([OP_RETURN]).toString('hex'),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],
@@ -1502,11 +1528,13 @@ describe('burning', () => {
           scriptPubKey: {
             hex: getDeployRunestoneHex({ edicts: [{ id: [888, 8], amount: 400, output: 1 }] }),
           },
+          value: 0,
         },
         {
           scriptPubKey: {
             hex: Buffer.from([OP_RETURN]).toString('hex'),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],
@@ -1555,11 +1583,13 @@ describe('burning', () => {
       vout: [
         {
           scriptPubKey: { hex: getDeployRunestoneHex({ pointer: 1 }) },
+          value: 0,
         },
         {
           scriptPubKey: {
             hex: Buffer.from([OP_RETURN]).toString('hex'),
           },
+          value: 0,
         },
         MAGIC_EDEN_OUTPUT,
       ],

@@ -84,4 +84,5 @@ export const MAGIC_EDEN_OUTPUT = {
     hex: 'a914ea6b832a05c6ca578baa3836f3f25553d41068a587',
     address: '3P4WqXDbSLRhzo2H6MT6YFbvBKBDPLbVtQ',
   },
+  value: 0,
 };
