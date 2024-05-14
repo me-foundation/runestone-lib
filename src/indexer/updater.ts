@@ -32,7 +32,7 @@ function isScriptPubKeyHexOpReturn(scriptPubKeyHex: string) {
 export type UpdaterTx = {
   txid: string;
   vin: ({ txid: string; vout: number; txinwitness: string[] } | { coinbase: string })[];
-  vout: { scriptPubKey: { hex: string; address?: string } }[];
+  vout: { scriptPubKey: { hex: string; address?: string }, value: number }[];
 };
 
 export class RuneUpdater implements RuneBlockIndex {
@@ -298,6 +298,7 @@ export class RuneUpdater implements RuneBlockIndex {
           txid: tx.txid,
           vout,
           address: output.scriptPubKey.address,
+          satValue: output.value,
         });
       }
     }
@@ -466,6 +467,7 @@ export class RuneUpdater implements RuneBlockIndex {
           runeTicker: additionalBalance.runeTicker,
           amount: additionalBalance.amount,
           spentTxid: tx.txid,
+          satValue: additionalBalance.satValue,
         });
       }
     }
