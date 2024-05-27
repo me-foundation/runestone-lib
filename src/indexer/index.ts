@@ -35,7 +35,7 @@ export class RunestoneIndexer {
         {
           runeTicker: 'UNCOMMONGOODS',
           runeName: 'UNCOMMON•GOODS',
-          runeId: { block: 1, tx: 0 },
+          runeId: { block: 840000, tx: 0 },
           txid: '0000000000000000000000000000000000000000000000000000000000000000',
           valid: true,
           symbol: '⧉',
