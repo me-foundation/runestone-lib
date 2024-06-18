@@ -71,6 +71,28 @@ export class RunestoneIndexer {
     }
   }
 
+  private async asyncProcessBlockHash({
+    blockhash,
+    reorg = false,
+  }: {
+    blockhash: string;
+    reorg: boolean;
+  }): Promise<void> {
+    const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
+    if (blockResult.error !== null) {
+      throw blockResult.error;
+    }
+    const block = blockResult.result;
+
+    const runeUpdater = new RuneUpdater(this._network, block, reorg, this._storage, this._rpc);
+
+    for (const [txIndex, tx] of block.tx.entries()) {
+      await runeUpdater.indexRunes(tx, txIndex);
+    }
+
+    await this._storage.saveBlockIndex(runeUpdater);
+  }
+
   private async updateRuneUtxoBalancesImpl() {
     const currentStorageBlock = await this._storage.getCurrentBlock();
     if (currentStorageBlock) {
@@ -92,19 +114,7 @@ export class RunestoneIndexer {
 
       // process blocks that are reorgs
       for (const blockhash of reorgBlockhashesToIndex) {
-        const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
-        if (blockResult.error !== null) {
-          throw blockResult.error;
-        }
-        const block = blockResult.result;
-
-        const runeUpdater = new RuneUpdater(this._network, block, true, this._storage, this._rpc);
-
-        for (const [txIndex, tx] of block.tx.entries()) {
-          await runeUpdater.indexRunes(tx, txIndex);
-        }
-
-        await this._storage.saveBlockIndex(runeUpdater);
+        await this.asyncProcessBlockHash({ blockhash, reorg: true });
       }
     }
 
@@ -115,19 +125,7 @@ export class RunestoneIndexer {
     );
     let blockhash = (await this._rpc.getblockhash({ height: blockheight })).result;
     while (blockhash !== null) {
-      const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
-      if (blockResult.error !== null) {
-        throw blockResult.error;
-      }
-      const block = blockResult.result;
-
-      const runeUpdater = new RuneUpdater(this._network, block, false, this._storage, this._rpc);
-
-      for (const [txIndex, tx] of block.tx.entries()) {
-        await runeUpdater.indexRunes(tx, txIndex);
-      }
-
-      await this._storage.saveBlockIndex(runeUpdater);
+      await this.asyncProcessBlockHash({ blockhash, reorg: false });
 
       blockheight++;
       blockhash = (await this._rpc.getblockhash({ height: blockheight })).result;
