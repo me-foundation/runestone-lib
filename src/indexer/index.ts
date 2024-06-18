@@ -3,6 +3,7 @@ import { Network } from '../network';
 import { BitcoinRpcClient } from '../rpcclient';
 import { RuneUpdater } from './updater';
 import { u128 } from '../integer';
+import DefaultIndexerLifeCycle from './DefaultIndexerLifeCycle';
 
 export * from './types';
 export { RuneUpdater } from './updater';
@@ -11,6 +12,7 @@ export class RunestoneIndexer {
   private readonly _storage: RunestoneStorage;
   private readonly _rpc: BitcoinRpcClient;
   private readonly _network: Network;
+  private readonly _lifecyle: DefaultIndexerLifeCycle;
 
   private _started: boolean = false;
   private _updateInProgress: boolean = false;
@@ -19,6 +21,7 @@ export class RunestoneIndexer {
     this._rpc = options.bitcoinRpcClient;
     this._storage = options.storage;
     this._network = options.network;
+    this._lifecyle = options.lifecycle || new DefaultIndexerLifeCycle();
   }
 
   async start(): Promise<void> {
@@ -86,9 +89,15 @@ export class RunestoneIndexer {
 
     const runeUpdater = new RuneUpdater(this._network, block, reorg, this._storage, this._rpc);
 
+    await this._lifecyle.beforeBlockIndex({ block });
+
     for (const [txIndex, tx] of block.tx.entries()) {
+      await this._lifecyle.beforeTxIndex({ tx, txIndex, block });
       await runeUpdater.indexRunes(tx, txIndex);
+      await this._lifecyle.afterTxIndex({ tx, txIndex, block });
     }
+
+    await this._lifecyle.afterBlockIndex({ block });
 
     await this._storage.saveBlockIndex(runeUpdater);
   }

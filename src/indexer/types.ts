@@ -1,5 +1,6 @@
 import { Network } from '../network';
 import { BitcoinRpcClient } from '../rpcclient';
+import AbstractIndexerLifeCycle from './AbstractIndexerLifeCycle';
 
 export interface RunestoneStorage {
   /**
@@ -73,6 +74,7 @@ export type RunestoneIndexerOptions = {
   bitcoinRpcClient: BitcoinRpcClient;
   network: Network;
   storage: RunestoneStorage;
+  lifecycle?: AbstractIndexerLifeCycle;
 };
 
 export type BlockIdentifier = {
