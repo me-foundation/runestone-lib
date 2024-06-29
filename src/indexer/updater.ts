@@ -32,7 +32,7 @@ function isScriptPubKeyHexOpReturn(scriptPubKeyHex: string) {
 export type UpdaterTx = {
   txid: string;
   vin: ({ txid: string; vout: number; txinwitness: string[] } | { coinbase: string })[];
-  vout: { scriptPubKey: { hex: string; address?: string }, value: number }[];
+  vout: { scriptPubKey: { hex: string; address?: string }; value: number }[];
 };
 
 export class RuneUpdater implements RuneBlockIndex {
