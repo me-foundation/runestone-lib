@@ -290,6 +290,10 @@ export class RuneUpdater implements RuneBlockIndex {
           throw new Error('Rune should exist at this point');
         }
 
+        if (!etchingByRuneId.has(runeIdString)) {
+          etchingByRuneId.set(runeIdString, etching);
+        }
+
         this.utxoBalances.push({
           runeId: balance.runeId,
           runeTicker: etching.runeTicker,
