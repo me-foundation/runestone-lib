@@ -1,4 +1,4 @@
-import { Artifact } from '../artifact';
+import { Artifact, isRunestone } from '../artifact';
 import {
   COMMIT_CONFIRMATIONS,
   OP_RETURN,
@@ -112,7 +112,7 @@ export class RuneUpdater implements RuneBlockIndex {
 
       const optionEtched = await this.etched(txIndex, tx, artifact);
 
-      if (artifact.type === 'runestone') {
+      if (isRunestone(artifact)) {
         const runestone = artifact;
 
         if (optionEtched.isSome()) {
@@ -206,7 +206,7 @@ export class RuneUpdater implements RuneBlockIndex {
       return balance;
     }
 
-    if (optionArtifact.isSome() && optionArtifact.unwrap().type === 'cenotaph') {
+    if (optionArtifact.isSome() && !isRunestone(optionArtifact.unwrap())) {
       for (const balance of unallocated.values()) {
         const currentBalance = getBurnedRuneBalance(balance.runeId);
         currentBalance.amount = u128.checkedAddThrow(
@@ -217,7 +217,7 @@ export class RuneUpdater implements RuneBlockIndex {
     } else {
       const pointer = optionArtifact
         .map((artifact) => {
-          if (artifact.type === 'cenotaph') {
+          if (!isRunestone(artifact)) {
             throw new Error('unreachable');
           }
 
@@ -317,7 +317,7 @@ export class RuneUpdater implements RuneBlockIndex {
     artifact: Artifact
   ): Promise<Option<{ runeId: RuneLocation; rune: Rune }>> {
     let optionRune: Option<Rune>;
-    if (artifact.type === 'runestone') {
+    if (isRunestone(artifact)) {
       const runestone = artifact;
       if (runestone.etching.isNone()) {
         return None;
@@ -538,7 +538,7 @@ export class RuneUpdater implements RuneBlockIndex {
   }
 
   createEtching(txid: string, artifact: Artifact, runeId: RuneLocation, rune: Rune) {
-    if (artifact.type === 'runestone') {
+    if (isRunestone(artifact)) {
       const { divisibility, terms, premine, spacers, symbol } = artifact.etching.unwrap();
       this.etchings.push({
         valid: true,
