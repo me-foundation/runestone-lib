@@ -250,7 +250,6 @@ export class Runestone {
     stack.push(MAGIC_NUMBER);
 
     const payload = Buffer.concat(payloads);
-    let i = 0;
     for (let i = 0; i < payload.length; i += MAX_SCRIPT_ELEMENT_SIZE) {
       stack.push(payload.subarray(i, i + MAX_SCRIPT_ELEMENT_SIZE));
     }
