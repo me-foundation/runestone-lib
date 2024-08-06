@@ -1,4 +1,4 @@
-import { script, opcodes } from './script';
+import { script } from './script';
 
 export namespace Instruction {
   export function isNumber(instruction: script.Instruction): instruction is number {

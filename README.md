@@ -64,7 +64,7 @@ the transaction data from Bitcoin Core RPC server.
 ```ts
 import {
   tryDecodeRunestone,
-  isRunestoneArtifact,
+  isRunestone,
   RunestoneSpec,
   Cenotaph
 } from '@magiceden-oss/runestone-lib';

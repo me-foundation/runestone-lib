@@ -50,7 +50,7 @@ export interface RunestoneStorage {
 
   /**
    * Get the total valid mint counts for rune up to and including specified block height.
-   * @param rune rune id string representation
+   * @param runeLocation rune id string representation
    * @param blockheight block height to count up to
    */
   getValidMintCount(runeLocation: string, blockheight: number): Promise<number>;

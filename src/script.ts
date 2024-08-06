@@ -291,7 +291,7 @@ export namespace script {
         // attempt to read too much data?
         if (i + d.number > buffer.length) return false;
 
-        const data = buffer.slice(i, i + d.number);
+        const data = buffer.subarray(i, i + d.number);
         i += d.number;
 
         yield data;
