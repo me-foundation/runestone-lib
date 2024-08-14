@@ -3,6 +3,7 @@ import { Network } from '../network';
 import { BitcoinRpcClient } from '../rpcclient';
 import { RuneUpdater } from './updater';
 import { u128 } from '../integer';
+import DefaultIndexerLifeCycle from './DefaultIndexerLifeCycle';
 
 export * from './types';
 export { RuneUpdater } from './updater';
@@ -11,6 +12,7 @@ export class RunestoneIndexer {
   private readonly _storage: RunestoneStorage;
   private readonly _rpc: BitcoinRpcClient;
   private readonly _network: Network;
+  private readonly _lifecyle: DefaultIndexerLifeCycle;
 
   private _started: boolean = false;
   private _updateInProgress: boolean = false;
@@ -19,6 +21,7 @@ export class RunestoneIndexer {
     this._rpc = options.bitcoinRpcClient;
     this._storage = options.storage;
     this._network = options.network;
+    this._lifecyle = options.lifecycle || new DefaultIndexerLifeCycle();
   }
 
   async start(): Promise<void> {
@@ -71,6 +74,34 @@ export class RunestoneIndexer {
     }
   }
 
+  private async asyncProcessBlockHash({
+    blockhash,
+    reorg = false,
+  }: {
+    blockhash: string;
+    reorg: boolean;
+  }): Promise<void> {
+    const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
+    if (blockResult.error !== null) {
+      throw blockResult.error;
+    }
+    const block = blockResult.result;
+
+    const runeUpdater = new RuneUpdater(this._network, block, reorg, this._storage, this._rpc);
+
+    await this._lifecyle.beforeBlockIndex({ block });
+
+    for (const [txIndex, tx] of block.tx.entries()) {
+      await this._lifecyle.beforeTxIndex({ tx, txIndex, block });
+      await runeUpdater.indexRunes(tx, txIndex);
+      await this._lifecyle.afterTxIndex({ tx, txIndex, block });
+    }
+
+    await this._lifecyle.afterBlockIndex({ block });
+
+    await this._storage.saveBlockIndex(runeUpdater);
+  }
+
   private async updateRuneUtxoBalancesImpl() {
     const currentStorageBlock = await this._storage.getCurrentBlock();
     if (currentStorageBlock) {
@@ -92,19 +123,7 @@ export class RunestoneIndexer {
 
       // process blocks that are reorgs
       for (const blockhash of reorgBlockhashesToIndex) {
-        const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
-        if (blockResult.error !== null) {
-          throw blockResult.error;
-        }
-        const block = blockResult.result;
-
-        const runeUpdater = new RuneUpdater(this._network, block, true, this._storage, this._rpc);
-
-        for (const [txIndex, tx] of block.tx.entries()) {
-          await runeUpdater.indexRunes(tx, txIndex);
-        }
-
-        await this._storage.saveBlockIndex(runeUpdater);
+        await this.asyncProcessBlockHash({ blockhash, reorg: true });
       }
     }
 
@@ -115,19 +134,7 @@ export class RunestoneIndexer {
     );
     let blockhash = (await this._rpc.getblockhash({ height: blockheight })).result;
     while (blockhash !== null) {
-      const blockResult = await this._rpc.getblock({ blockhash, verbosity: 2 });
-      if (blockResult.error !== null) {
-        throw blockResult.error;
-      }
-      const block = blockResult.result;
-
-      const runeUpdater = new RuneUpdater(this._network, block, false, this._storage, this._rpc);
-
-      for (const [txIndex, tx] of block.tx.entries()) {
-        await runeUpdater.indexRunes(tx, txIndex);
-      }
-
-      await this._storage.saveBlockIndex(runeUpdater);
+      await this.asyncProcessBlockHash({ blockhash, reorg: false });
 
       blockheight++;
       blockhash = (await this._rpc.getblockhash({ height: blockheight })).result;
