@@ -3,6 +3,7 @@ import { Network } from '../network';
 import { BitcoinRpcClient } from '../rpcclient';
 import { RuneUpdater } from './updater';
 import { u128 } from '../integer';
+import { COMMIT_CONFIRMATIONS } from '../constants';
 
 export * from './types';
 export { RuneUpdater } from './updater';
@@ -98,7 +99,29 @@ export class RunestoneIndexer {
         }
         const block = blockResult.result;
 
-        const runeUpdater = new RuneUpdater(this._network, block, true, this._storage, this._rpc);
+        let uncommittedTxids = block.tx.map((tx) => tx.txid);
+        let nextblockhash = block.previousblockhash;
+        for (let i = 0; i < COMMIT_CONFIRMATIONS - 2; i++) {
+          const blockResult = await this._rpc.getblock({ blockhash: nextblockhash });
+          if (blockResult.error !== null) {
+            throw blockResult.error;
+          }
+          const block = blockResult.result;
+
+          uncommittedTxids = uncommittedTxids.concat(block.tx);
+          nextblockhash = block.previousblockhash;
+        }
+
+        const uncommittedTxidsSet = new Set(uncommittedTxids);
+
+        const runeUpdater = new RuneUpdater(
+          this._network,
+          block,
+          true,
+          this._storage,
+          this._rpc,
+          uncommittedTxidsSet
+        );
 
         for (const [txIndex, tx] of block.tx.entries()) {
           await runeUpdater.indexRunes(tx, txIndex);
@@ -121,7 +144,29 @@ export class RunestoneIndexer {
       }
       const block = blockResult.result;
 
-      const runeUpdater = new RuneUpdater(this._network, block, false, this._storage, this._rpc);
+      let uncommittedTxids = block.tx.map((tx) => tx.txid);
+      let nextblockhash = block.previousblockhash;
+      for (let i = 0; i < COMMIT_CONFIRMATIONS - 2; i++) {
+        const blockResult = await this._rpc.getblock({ blockhash: nextblockhash });
+        if (blockResult.error !== null) {
+          throw blockResult.error;
+        }
+        const block = blockResult.result;
+
+        uncommittedTxids = uncommittedTxids.concat(block.tx);
+        nextblockhash = block.previousblockhash;
+      }
+
+      const uncommittedTxidsSet = new Set(uncommittedTxids);
+
+      const runeUpdater = new RuneUpdater(
+        this._network,
+        block,
+        false,
+        this._storage,
+        this._rpc,
+        uncommittedTxidsSet
+      );
 
       for (const [txIndex, tx] of block.tx.entries()) {
         await runeUpdater.indexRunes(tx, txIndex);

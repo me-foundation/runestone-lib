@@ -33,8 +33,6 @@ export {
   GetBlockParams,
   GetBlockReturn,
   GetBlockhashParams,
-  GetRawTransactionParams,
-  GetRawTransactionReturn,
   RpcResponse,
   Tx,
 } from './src/rpcclient';

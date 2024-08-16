@@ -50,7 +50,8 @@ export class RuneUpdater implements RuneBlockIndex {
     block: BlockInfo,
     readonly reorg: boolean,
     private readonly _storage: RunestoneStorage,
-    private readonly _rpc: BitcoinRpcClient
+    private readonly _rpc: BitcoinRpcClient,
+    private readonly _etchingUncommittedTxids: Set<string>
   ) {
     this.block = {
       height: block.height,
@@ -490,6 +491,15 @@ export class RuneUpdater implements RuneBlockIndex {
         continue;
       }
 
+      // check if control block is formatted correctly
+      const potentiallyControlBlock = witnessStack[witnessStack.length - offset + 1];
+      if ((potentiallyControlBlock[0] & 0xfe) !== 0xc0) {
+        continue;
+      }
+      if (potentiallyControlBlock.length % 32 !== 1) {
+        continue;
+      }
+
       const potentiallyTapscript = witnessStack[witnessStack.length - offset];
       if (potentiallyTapscript === undefined) {
         continue;
@@ -504,31 +514,7 @@ export class RuneUpdater implements RuneBlockIndex {
           continue;
         }
 
-        // rpc client
-        const inputTxResult = await this._rpc.getrawtransaction({
-          txid: input.txid,
-          verbose: true,
-        });
-        if (inputTxResult.error !== null) {
-          throw inputTxResult.error;
-        }
-        const inputTx = inputTxResult.result;
-
-        const isTaproot = inputTx.vout[input.vout].scriptPubKey.type === TAPROOT_SCRIPT_PUBKEY_TYPE;
-        if (!isTaproot) {
-          continue;
-        }
-
-        const commitTxHeightResult = await this._rpc.getblock({ blockhash: inputTx.blockhash });
-        if (commitTxHeightResult.error !== null) {
-          throw commitTxHeightResult.error;
-        }
-        const commitTxHeight = commitTxHeightResult.result.height;
-
-        const confirmations =
-          u128.checkedSubThrow(u128(this.block.height), u128(commitTxHeight)) + 1n;
-
-        if (confirmations >= COMMIT_CONFIRMATIONS) {
+        if (!this._etchingUncommittedTxids.has(input.txid)) {
           return true;
         }
       }

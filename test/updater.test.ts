@@ -7,7 +7,7 @@ import { MAGIC_EDEN_OUTPUT, getDeployRunestoneHex } from './fixtures';
 import { OP_RETURN, TAPROOT_SCRIPT_PUBKEY_TYPE } from '../src/constants';
 import * as _ from 'lodash';
 
-function getDefaultRuneUpdaterContext() {
+function getDefaultRuneUpdaterContext(unconfirmedTxids: string[] = []) {
   const block = {
     hash: 'hash',
     height: 100_000,
@@ -23,7 +23,14 @@ function getDefaultRuneUpdaterContext() {
 
   const rpc = mock<BitcoinRpcClient>();
 
-  const runeUpdater = new RuneUpdater(Network.MAINNET, block, false, storage, rpc);
+  const runeUpdater = new RuneUpdater(
+    Network.MAINNET,
+    block,
+    false,
+    storage,
+    rpc,
+    new Set(unconfirmedTxids)
+  );
 
   return { runeUpdater, block, storage, rpc };
 }
@@ -35,7 +42,10 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
+        {
+          scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) },
+          value: 0,
+        },
       ],
     };
 
@@ -50,7 +60,9 @@ describe('deploy', () => {
       {
         txid: 'txid',
         vin: [{ txid: 'parenttxid', vout: 1, txinwitness: [] }],
-        vout: [{ scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAA' } }) }, value: 0 }],
+        vout: [
+          { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAA' } }) }, value: 0 },
+        ],
       },
       88
     );
@@ -78,35 +90,22 @@ describe('deploy', () => {
       ],
     };
 
-    rpc.getrawtransaction.mockResolvedValue({
-      result: {
-        confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
-      } as any,
-      error: null,
-    });
-
     await runeUpdater.indexRunes(tx, 88);
     expect(runeUpdater.etchings.length).toBe(0);
   });
 
   test('deploy is unsuccessful due rune confirmation not mature', async () => {
-    const { runeUpdater, rpc } = getDefaultRuneUpdaterContext();
+    const { runeUpdater, rpc } = getDefaultRuneUpdaterContext(['parenttxid']);
     const tx: UpdaterTx = {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'dead'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
+        {
+          scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) },
+          value: 0,
+        },
       ],
     };
-    rpc.getrawtransaction.mockResolvedValue({
-      result: {
-        blockhash: 'etchingblockhash',
-        confirmations: 5,
-        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
-      } as any,
-      error: null,
-    });
     rpc.getblock.mockResolvedValue({
       result: { height: 99996 } as any,
       error: null,
@@ -122,16 +121,12 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'dead'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
+        {
+          scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) },
+          value: 0,
+        },
       ],
     };
-    rpc.getrawtransaction.mockResolvedValue({
-      result: {
-        confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
-      } as any,
-      error: null,
-    });
     storage.getRuneLocation.mockResolvedValue({ block: 1, tx: 1 });
 
     await runeUpdater.indexRunes(tx, 88);
@@ -144,16 +139,12 @@ describe('deploy', () => {
       txid: 'txid',
       vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['04d6e3604a04356bcf23', 'dead'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
+        {
+          scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) },
+          value: 0,
+        },
       ],
     };
-    rpc.getrawtransaction.mockResolvedValue({
-      result: {
-        confirmations: 6,
-        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
-      } as any,
-      error: null,
-    });
 
     await runeUpdater.indexRunes(tx, 88);
     expect(runeUpdater.etchings.length).toBe(0);
@@ -163,18 +154,14 @@ describe('deploy', () => {
     const { runeUpdater, rpc } = getDefaultRuneUpdaterContext();
     const tx: UpdaterTx = {
       txid: 'txid',
-      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'dead'] }],
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'c0'] }],
       vout: [
-        { scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) }, value: 0 },
+        {
+          scriptPubKey: { hex: getDeployRunestoneHex({ etching: { rune: 'AAAAAAAAAAAAAA' } }) },
+          value: 0,
+        },
       ],
     };
-    rpc.getrawtransaction.mockResolvedValue({
-      result: {
-        blockhash: 'etchingblockhash',
-        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
-      } as any,
-      error: null,
-    });
     rpc.getblock.mockResolvedValue({
       result: { height: 99995 } as any,
       error: null,
@@ -205,7 +192,7 @@ describe('deploy', () => {
     const { runeUpdater, rpc } = getDefaultRuneUpdaterContext();
     const tx: UpdaterTx = {
       txid: 'txid',
-      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'dead'] }],
+      vin: [{ txid: 'parenttxid', vout: 1, txinwitness: ['08d6e3604a356bcf23', 'c0'] }],
       vout: [
         {
           scriptPubKey: {
@@ -215,13 +202,6 @@ describe('deploy', () => {
         },
       ],
     };
-    rpc.getrawtransaction.mockResolvedValue({
-      result: {
-        blockhash: 'etchingblockhash',
-        vout: [{}, { scriptPubKey: { type: TAPROOT_SCRIPT_PUBKEY_TYPE } }],
-      } as any,
-      error: null,
-    });
     rpc.getblock.mockResolvedValue({
       result: { height: 99995 } as any,
       error: null,

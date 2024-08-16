@@ -68,12 +68,6 @@ export type GetBlockhashParams = {
   height: number;
 };
 
-export type GetRawTransactionParams = {
-  txid: string;
-  verbose?: boolean;
-  blockhash?: string;
-};
-
 export type GetBlockReturn<T> = T extends { verbosity: 0 }
   ? string
   : T extends { verbosity: 1 }
@@ -81,10 +75,6 @@ export type GetBlockReturn<T> = T extends { verbosity: 0 }
   : T extends { verbosity: 2 }
   ? { tx: Tx[] } & BitcoinBlock
   : { tx: string[] } & BitcoinBlock;
-
-export type GetRawTransactionReturn<T> = T extends { verbose: true }
-  ? Tx & { confirmations?: number; blockhash: string }
-  : string;
 
 export type RpcResponse<T> =
   | {
@@ -102,9 +92,4 @@ export interface BitcoinRpcClient {
     verbosity,
     blockhash,
   }: T): Promise<RpcResponse<GetBlockReturn<T>>>;
-  getrawtransaction<T extends GetRawTransactionParams>({
-    txid,
-    verbose,
-    blockhash,
-  }: T): Promise<RpcResponse<GetRawTransactionReturn<T>>>;
 }
