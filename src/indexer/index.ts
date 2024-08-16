@@ -30,7 +30,7 @@ export class RunestoneIndexer {
 
     this._started = true;
 
-    if (this._network === Network.MAINNET) {
+    if (this._network === Network.MAINNET || this._network === Network.FRACTAL) {
       this._storage.seedEtchings([
         {
           runeTicker: 'UNCOMMONGOODS',

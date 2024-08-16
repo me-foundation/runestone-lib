@@ -5,6 +5,7 @@ export enum Network {
   SIGNET,
   TESTNET,
   REGTEST,
+  FRACTAL,
 }
 
 export namespace Network {
@@ -18,6 +19,8 @@ export namespace Network {
         return SUBSIDY_HALVING_INTERVAL * 0;
       case Network.TESTNET:
         return SUBSIDY_HALVING_INTERVAL * 12;
+      case Network.FRACTAL:
+        return SUBSIDY_HALVING_INTERVAL / 10;
     }
   }
 }
