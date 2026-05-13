@@ -186,6 +186,35 @@ describe('runestone', () => {
     expect(etching.terms.isNone()).toBe(true);
   });
 
+  test('decipher_etching_without_turbo', () => {
+    // ETCHING flag set, TURBO flag NOT set -> etching.turbo === false
+    // Mirrors ord's reference test runestone.rs#decipher_runestone (turbo: false).
+    const runestone = decipher(
+      [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.BODY, 1, 1, 2, 0].map(u128)
+    );
+
+    if (runestone.type === 'cenotaph') {
+      throw Error;
+    }
+
+    const etching = runestone.etching.unwrap();
+    expect(etching.turbo).toBe(false);
+  });
+
+  test('decipher_etching_with_turbo', () => {
+    // ETCHING + TURBO flags both set -> etching.turbo === true
+    const runestone = decipher(
+      [Tag.FLAGS, Flag.mask(Flag.ETCHING) | Flag.mask(Flag.TURBO), Tag.BODY, 1, 1, 2, 0].map(u128)
+    );
+
+    if (runestone.type === 'cenotaph') {
+      throw Error;
+    }
+
+    const etching = runestone.etching.unwrap();
+    expect(etching.turbo).toBe(true);
+  });
+
   test('decipher_etching_with_rune', () => {
     const runestone = decipher(
       [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, 4, Tag.BODY, 1, 1, 2, 0].map(u128)

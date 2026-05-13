@@ -120,7 +120,7 @@ export class Runestone {
           const premine = Tag.take(Tag.PREMINE, fields, 1, ([value]) => Some(value));
 
           const turboResult = Flag.take(flags, Flag.TURBO);
-          const turbo = etchingResult.set;
+          const turbo = turboResult.set;
           flags = turboResult.flags;
 
           return Some(new Etching(divisibility, rune, spacers, symbol, terms, premine, turbo));
