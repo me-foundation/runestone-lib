@@ -85,8 +85,16 @@ export class Runestone {
 
           const symbol = Tag.take(Tag.SYMBOL, fields, 1, ([value]) =>
             u128.tryIntoU32(value).andThen((value) => {
+              const codePoint = Number(value);
+              // ord decodes SYMBOL with `char::from_u32`, which returns None for
+              // the UTF-16 surrogate range (0xD800..=0xDFFF). String.fromCodePoint
+              // returns a lone surrogate there instead of throwing, so guard it to
+              // agree with ord.
+              if (codePoint >= 0xd800 && codePoint <= 0xdfff) {
+                return None;
+              }
               try {
-                return Some(String.fromCodePoint(Number(value)));
+                return Some(String.fromCodePoint(codePoint));
               } catch (e) {
                 return None;
               }

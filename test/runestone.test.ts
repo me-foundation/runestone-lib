@@ -499,6 +499,36 @@ describe('runestone', () => {
     expect(etching.terms.isNone()).toBe(true);
   });
 
+  test('symbol_surrogate_is_ignored', () => {
+    const runestone = decipher(
+      [
+        Tag.FLAGS,
+        Flag.mask(Flag.ETCHING),
+        Tag.RUNE,
+        4,
+        Tag.SYMBOL,
+        0xd800,
+        Tag.BODY,
+        1,
+        1,
+        2,
+        0,
+      ].map(u128)
+    );
+
+    if (runestone.type === 'cenotaph') {
+      throw Error;
+    }
+    expect(runestone.edicts).toEqual([{ id: createRuneId(1), amount: 2n, output: 0n }]);
+
+    const etching = runestone.etching.unwrap();
+    expect(etching.divisibility.isNone()).toBe(true);
+    expect(etching.rune.unwrap().value).toBe(4n);
+    expect(etching.spacers.isNone()).toBe(true);
+    expect(etching.symbol.isNone()).toBe(true);
+    expect(etching.terms.isNone()).toBe(true);
+  });
+
   test('decipher_etching_with_symbol', () => {
     const runestone = decipher(
       [Tag.FLAGS, Flag.mask(Flag.ETCHING), Tag.RUNE, 4, Tag.SYMBOL, 97, Tag.BODY, 1, 1, 2, 0].map(
